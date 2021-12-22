@@ -157,6 +157,8 @@ func source_loop(h *teleportSource) {
 	C.memset(unsafe.Pointer(frame), 0, C.sizeof_struct_obs_source_frame)
 	defer C.free(unsafe.Pointer(frame))
 
+	C.video_format_get_parameters(C.VIDEO_CS_709, C.VIDEO_RANGE_PARTIAL, &frame.color_matrix[0], &frame.color_range_min[0], &frame.color_range_max[0])
+
 	audio := (*C.struct_obs_source_audio)(C.malloc(C.sizeof_struct_obs_source_audio))
 	C.memset(unsafe.Pointer(audio), 0, C.sizeof_struct_obs_source_audio)
 	defer C.free(unsafe.Pointer(audio))
@@ -226,7 +228,8 @@ func source_loop(h *teleportSource) {
 		if service, ok := h.services[teleport]; ok {
 			c, err := net.Dial("tcp", service.address+":"+strconv.Itoa(service.port))
 			if err != nil {
-				panic(err)
+				log.Println(err)
+				goto wait
 			}
 			defer c.Close()
 
@@ -242,7 +245,8 @@ func source_loop(h *teleportSource) {
 				Quality: int(quality),
 			})
 			if err != nil {
-				panic(err)
+				log.Println(err)
+				goto wait
 			}
 
 			b := bytes.Buffer{}
@@ -260,12 +264,10 @@ func source_loop(h *teleportSource) {
 			_, err = buffers.WriteTo(c)
 			if err != nil {
 				log.Println(err)
-				return
+				goto wait
 			}
 
 			go func() {
-				C.video_format_get_parameters(C.VIDEO_CS_709, C.VIDEO_RANGE_PARTIAL, &frame.color_matrix[0], &frame.color_range_min[0], &frame.color_range_max[0])
-
 				for {
 					var header header
 
@@ -364,7 +366,7 @@ func source_loop(h *teleportSource) {
 			}()
 		}
 	}
-
+wait:
 	for {
 		select {
 		case t := <-ticker.C:
