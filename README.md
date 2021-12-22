@@ -4,7 +4,7 @@ An [OBS Studio] plugin for an open [NDI]-like replacement. Pretty simple, straig
 
 Just as an alternative option for stream setups with multiple machines wanting to transmit some OBS Studio scenes to the main streaming machine in LAN.
 
-[OBS Studio]: https://obsproject.org
+[OBS Studio]: https://obsproject.com
 [NDI]: https://ndi.tv/
 
 
