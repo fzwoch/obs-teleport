@@ -70,6 +70,7 @@ package main
 //
 import "C"
 import (
+	"os"
 	"unsafe"
 )
 
@@ -95,6 +96,9 @@ var (
 	output_str   = C.CString("teleport-output")
 	frontend_str = C.CString("Teleport")
 	dummy_str    = C.CString("teleport-dummy")
+
+	output *C.obs_output_t
+	dummy  *C.obs_source_t
 )
 
 //export obs_module_load
@@ -136,17 +140,30 @@ func obs_module_load() C.bool {
 		update:         C.update_t(unsafe.Pointer(C.dummy_update)),
 	}, C.sizeof_struct_obs_source_info)
 
+	output = C.obs_output_create(output_str, frontend_str, nil, nil)
+	dummy = C.obs_source_create(dummy_str, frontend_str, nil, nil)
+
+	dir, _ := os.UserConfigDir()
+
+	settings := C.obs_data_create_from_json_file(C.CString(dir + "/obs-teleport.json"))
+	C.obs_source_update(dummy, settings)
+	C.obs_data_release(settings)
+
 	return true
 }
 
 //export obs_module_unload
 func obs_module_unload() {
-	if output != nil {
-		frontend_stop()
-	}
-	if dummy != nil {
-		C.obs_source_release(dummy)
-	}
+	frontend_stop()
+
+	dir, _ := os.UserConfigDir()
+
+	settings := C.obs_source_get_settings(dummy)
+	C.obs_data_save_json(settings, C.CString(dir+"/obs-teleport.json"))
+	C.obs_data_release(settings)
+
+	C.obs_output_release(output)
+	C.obs_source_release(dummy)
 }
 
 type options_header struct {

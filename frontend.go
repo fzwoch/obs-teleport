@@ -31,38 +31,29 @@ import (
 )
 
 var (
-	output              *C.obs_output_t
-	dummy               *C.obs_source_t
 	obs_teleport_enable = C.CString("teleport-enable")
 	obs_teleport_str    = C.CString("Teleport Enabled")
 )
 
 //export frontend_cb
 func frontend_cb(data C.uintptr_t) {
-	if dummy == nil {
-		dummy = C.obs_source_create(dummy_str, frontend_str, nil, nil)
-	}
-
 	C.obs_frontend_open_source_properties(dummy)
 }
 
 func frontend_start() {
-	if output != nil {
+	if C.obs_output_active(output) {
 		return
 	}
 
-	output = C.obs_output_create(output_str, output_str, nil, nil)
 	C.obs_output_start(output)
 }
 
 func frontend_stop() {
-	if output == nil {
+	if !C.obs_output_active(output) {
 		return
 	}
 
 	C.obs_output_stop(output)
-	C.obs_output_release(output)
-	output = nil
 }
 
 //export dummy_get_name
