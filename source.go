@@ -22,6 +22,7 @@ package main
 
 //
 // #include <obs-module.h>
+// #include <util/platform.h>
 // #include <stdlib.h>
 //
 import "C"
@@ -118,6 +119,9 @@ func source_get_properties(data C.uintptr_t) *C.obs_properties_t {
 
 	C.obs_properties_add_int_slider(properties, C.CString("quality"), C.CString("Quality"), 0, 100, 1)
 
+	prop = C.obs_properties_add_bool(properties, C.CString("use_local_timestamps"), C.CString("Use local machine's timestamps"))
+	C.obs_property_set_long_description(prop, C.CString("May help against long time synchronization clock drifts, but may also increase jitter."))
+
 	return properties
 }
 
@@ -129,6 +133,7 @@ func source_get_defaults(settings *C.obs_data_t) {
 
 	C.obs_data_set_default_string(settings, tel, str)
 	C.obs_data_set_default_int(settings, qua, 90)
+	C.obs_data_set_default_bool(settings, C.CString("use_local_timestamps"), false)
 
 	C.free(unsafe.Pointer(tel))
 	C.free(unsafe.Pointer(str))
@@ -322,6 +327,12 @@ func source_loop(h *teleportSource) {
 								frame.data[1] = (*C.uint8_t)(unsafe.Pointer(&h.images[0].image.Cb[0]))
 								frame.data[2] = (*C.uint8_t)(unsafe.Pointer(&h.images[0].image.Cr[0]))
 
+								settings := C.obs_source_get_settings(h.source)
+								if C.obs_data_get_bool(settings, C.CString("use_local_timestamps")) {
+									frame.timestamp = C.os_gettime_ns()
+								}
+								C.obs_data_release(settings)
+
 								C.obs_source_output_video(h.source, frame)
 
 								frame.data[0] = nil
@@ -338,6 +349,12 @@ func source_loop(h *teleportSource) {
 						audio.format = C.AUDIO_FORMAT_16BIT
 						audio.frames = C.uint(header.Size) / 4
 						audio.data[0] = (*C.uint8_t)(unsafe.Pointer(&b[0]))
+
+						settings := C.obs_source_get_settings(h.source)
+						if C.obs_data_get_bool(settings, C.CString("use_local_timestamps")) {
+							frame.timestamp = C.os_gettime_ns()
+						}
+						C.obs_data_release(settings)
 
 						C.obs_source_output_audio(h.source, audio)
 
