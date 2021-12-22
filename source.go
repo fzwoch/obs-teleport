@@ -352,7 +352,7 @@ func source_loop(h *teleportSource) {
 
 						settings := C.obs_source_get_settings(h.source)
 						if C.obs_data_get_bool(settings, C.CString("use_local_timestamps")) {
-							frame.timestamp = C.os_gettime_ns()
+							audio.timestamp = C.os_gettime_ns()
 						}
 						C.obs_data_release(settings)
 
