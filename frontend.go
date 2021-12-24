@@ -42,7 +42,7 @@ func frontend_cb(data C.uintptr_t) {
 
 func frontend_start() {
 	if C.obs_output_active(output) {
-		return
+		frontend_stop()
 	}
 
 	C.obs_output_start(output)
@@ -79,12 +79,16 @@ func dummy_get_properties(data C.uintptr_t) *C.obs_properties_t {
 
 	C.obs_properties_add_bool(properties, obs_teleport_enable, obs_teleport_str)
 
+	prop := C.obs_properties_add_text(properties, C.CString("identifier"), C.CString("Identifier"), C.OBS_TEXT_DEFAULT)
+	C.obs_property_set_long_description(prop, C.CString("Name of the stream. Uses hostname if blank."))
+
 	return properties
 }
 
 //export dummy_get_defaults
 func dummy_get_defaults(settings *C.obs_data_t) {
 	C.obs_data_set_default_bool(settings, obs_teleport_enable, false)
+	C.obs_data_set_default_string(settings, C.CString("identifier"), C.CString(""))
 }
 
 //export dummy_update

@@ -316,9 +316,15 @@ func output_loop(h *teleportOutput) {
 	go func() {
 		p, _ := strconv.Atoi(port)
 
-		name, err := os.Hostname()
-		if err != nil {
-			name = "(None)"
+		settings := C.obs_source_get_settings(dummy)
+		name := C.GoString(C.obs_data_get_string(settings, C.CString("identifier")))
+		C.obs_data_release(settings)
+
+		if name == "" {
+			name, err = os.Hostname()
+			if err != nil {
+				name = "(None)"
+			}
 		}
 
 		j := struct {
