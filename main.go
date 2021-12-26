@@ -145,7 +145,7 @@ func obs_module_load() C.bool {
 
 	dir, _ := os.UserConfigDir()
 
-	settings := C.obs_data_create_from_json_file(C.CString(dir + "/obs-teleport.json"))
+	settings := C.obs_data_create_from_json_file(C.CString(dir + string(os.PathSeparator) + "obs-teleport.json"))
 	C.obs_source_update(dummy, settings)
 	C.obs_data_release(settings)
 
@@ -159,7 +159,7 @@ func obs_module_unload() {
 	dir, _ := os.UserConfigDir()
 
 	settings := C.obs_source_get_settings(dummy)
-	C.obs_data_save_json(settings, C.CString(dir+"/obs-teleport.json"))
+	C.obs_data_save_json(settings, C.CString(dir+string(os.PathSeparator)+"obs-teleport.json"))
 	C.obs_data_release(settings)
 
 	C.obs_output_release(output)
