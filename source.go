@@ -200,7 +200,7 @@ func source_loop(h *teleportSource) {
 				}
 
 				h.Lock()
-				h.services[d.Address+":"+strconv.Itoa(j.Port)] = peer{
+				h.services[j.Name+":"+d.Address] = peer{
 					name:    j.Name,
 					address: d.Address,
 					port:    j.Port,
