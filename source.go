@@ -204,14 +204,14 @@ func source_loop(h *teleportSource) {
 					name:    j.Name,
 					address: d.Address,
 					port:    j.Port,
-					time:    time.Now().Add(15 * time.Second),
+					time:    time.Now().Add(5 * time.Second),
 				}
 				h.Unlock()
 			},
 		})
 	}()
 
-	ticker := time.NewTicker(5 * time.Second)
+	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
 
 	var c net.Conn
