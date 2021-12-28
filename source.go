@@ -214,26 +214,23 @@ func source_loop(h *teleportSource) {
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
 
-	settings := C.obs_source_get_settings(h.source)
+	var c net.Conn
 
-	tel := C.CString("teleport_list")
-	teleport := C.GoString(C.obs_data_get_string(settings, tel))
-	C.free(unsafe.Pointer(tel))
+	dial := make(chan struct{})
+	defer func() {
+		close(dial)
+		if c != nil {
+			c.Close()
+		}
+	}()
 
-	C.obs_data_release(settings)
-
-	if teleport == "" {
-		C.obs_source_output_video(h.source, nil)
-	} else {
-		if service, ok := h.services[teleport]; ok {
-			c, err := net.Dial("tcp", service.address+":"+strconv.Itoa(service.port))
-			if err != nil {
-				log.Println(err)
-				goto wait
-			}
-			defer c.Close()
-
+	go func() {
+		for {
 			settings := C.obs_source_get_settings(h.source)
+
+			tel := C.CString("teleport_list")
+			teleport := C.GoString(C.obs_data_get_string(settings, tel))
+			C.free(unsafe.Pointer(tel))
 
 			qua := C.CString("quality")
 			quality := C.obs_data_get_int(settings, qua)
@@ -241,40 +238,49 @@ func source_loop(h *teleportSource) {
 
 			C.obs_data_release(settings)
 
-			j, err := json.Marshal(&options{
-				Quality: int(quality),
-			})
-			if err != nil {
-				log.Println(err)
-				goto wait
-			}
+			if service, ok := h.services[teleport]; ok {
+				var err error
 
-			b := bytes.Buffer{}
+				c, err = net.Dial("tcp", service.address+":"+strconv.Itoa(service.port))
+				if err != nil {
+					log.Println(err)
+					goto wait
 
-			binary.Write(&b, binary.LittleEndian, &options_header{
-				Magic: [4]byte{'O', 'P', 'T', 'S'},
-				Size:  int32(len(j)),
-			})
+				}
 
-			buffers := net.Buffers{
-				b.Bytes(),
-				j,
-			}
+				j, err := json.Marshal(&options{
+					Quality: int(quality),
+				})
+				if err != nil {
+					log.Println(err)
+					goto wait
+				}
 
-			_, err = buffers.WriteTo(c)
-			if err != nil {
-				log.Println(err)
-				goto wait
-			}
+				b := bytes.Buffer{}
 
-			go func() {
+				binary.Write(&b, binary.LittleEndian, &options_header{
+					Magic: [4]byte{'O', 'P', 'T', 'S'},
+					Size:  int32(len(j)),
+				})
+
+				buffers := net.Buffers{
+					b.Bytes(),
+					j,
+				}
+
+				_, err = buffers.WriteTo(c)
+				if err != nil {
+					log.Println(err)
+					goto wait
+				}
+
 				for {
 					var header header
 
 					err = binary.Read(c, binary.LittleEndian, &header)
 					if err != nil {
 						log.Println(err)
-						return
+						goto wait
 					}
 					switch header.Type {
 					case [4]byte{'J', 'P', 'E', 'G'}:
@@ -288,12 +294,11 @@ func source_loop(h *teleportSource) {
 					_, err := io.ReadFull(c, b)
 					if err != nil {
 						log.Println(err)
-						return
+						goto wait
 					}
 
 					switch header.Type {
 					case [4]byte{'J', 'P', 'E', 'G'}:
-
 						info := &imageInfo{
 							timestamp: header.Timestamp,
 							b:         b,
@@ -363,10 +368,20 @@ func source_loop(h *teleportSource) {
 						audio.data[0] = nil
 					}
 				}
-			}()
+			} else {
+				C.obs_source_output_video(h.source, nil)
+			}
+
+		wait:
+			select {
+			case <-dial:
+				return
+			default:
+				time.Sleep(time.Second)
+			}
 		}
-	}
-wait:
+	}()
+
 	for {
 		select {
 		case t := <-ticker.C:
