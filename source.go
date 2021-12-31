@@ -61,6 +61,7 @@ type imageInfo struct {
 
 type teleportSource struct {
 	sync.Mutex
+	sync.WaitGroup
 	done      chan interface{}
 	services  map[string]peer
 	source    *C.obs_source_t
@@ -81,6 +82,8 @@ func source_create(settings *C.obs_data_t, source *C.obs_source_t) C.uintptr_t {
 		source:   source,
 	}
 
+	h.Add(1)
+
 	go source_loop(h)
 
 	return C.uintptr_t(cgo.NewHandle(h))
@@ -91,7 +94,9 @@ func source_destroy(data C.uintptr_t) {
 	h := cgo.Handle(data).Value().(*teleportSource)
 
 	h.done <- nil
-	<-h.done
+	h.Wait()
+
+	close(h.done)
 
 	cgo.Handle(data).Delete()
 }
@@ -145,14 +150,16 @@ func source_update(data C.uintptr_t, settings *C.obs_data_t) {
 	h := cgo.Handle(data).Value().(*teleportSource)
 
 	h.done <- nil
-	<-h.done
+	h.Wait()
 
-	h.done = make(chan interface{})
+	h.Add(1)
 
 	go source_loop(h)
 }
 
 func source_loop(h *teleportSource) {
+	defer h.Done()
+
 	frame := (*C.struct_obs_source_frame)(C.malloc(C.sizeof_struct_obs_source_frame))
 	C.memset(unsafe.Pointer(frame), 0, C.sizeof_struct_obs_source_frame)
 	defer C.free(unsafe.Pointer(frame))
@@ -163,26 +170,14 @@ func source_loop(h *teleportSource) {
 	C.memset(unsafe.Pointer(audio), 0, C.sizeof_struct_obs_source_audio)
 	defer C.free(unsafe.Pointer(audio))
 
-	defer close(h.done)
-
-	defer func() {
-		for {
-			h.imageLock.Lock()
-			len := len(h.images)
-			h.imageLock.Unlock()
-
-			if len == 0 {
-				break
-			}
-
-			time.Sleep(time.Millisecond)
-		}
-	}()
-
 	discover := make(chan struct{})
 	defer close(discover)
 
+	h.Add(1)
+
 	go func() {
+		defer h.Done()
+
 		peerdiscovery.Discover(peerdiscovery.Settings{
 			TimeLimit:        -1,
 			StopChan:         discover,
@@ -224,7 +219,11 @@ func source_loop(h *teleportSource) {
 		}
 	}()
 
+	h.Add(1)
+
 	go func() {
+		defer h.Done()
+
 		for {
 			settings := C.obs_source_get_settings(h.source)
 
@@ -244,8 +243,8 @@ func source_loop(h *teleportSource) {
 				c, err = net.Dial("tcp", service.address+":"+strconv.Itoa(service.port))
 				if err != nil {
 					log.Println(err)
+					time.Sleep(time.Second)
 					goto wait
-
 				}
 
 				j, err := json.Marshal(&options{
@@ -308,7 +307,11 @@ func source_loop(h *teleportSource) {
 						h.images = append(h.images, info)
 						h.imageLock.Unlock()
 
+						h.Add(1)
+
 						go func(info *imageInfo) {
+							defer h.Done()
+
 							reader := bytes.NewReader(info.b)
 
 							img, err := jpeg.Decode(reader, &jpeg.DecoderOptions{})
@@ -370,6 +373,8 @@ func source_loop(h *teleportSource) {
 				}
 			} else {
 				C.obs_source_output_video(h.source, nil)
+
+				time.Sleep(time.Second)
 			}
 
 		wait:
@@ -377,7 +382,6 @@ func source_loop(h *teleportSource) {
 			case <-dial:
 				return
 			default:
-				time.Sleep(time.Second)
 			}
 		}
 	}()
