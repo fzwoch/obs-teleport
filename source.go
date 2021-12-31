@@ -237,7 +237,11 @@ func source_loop(h *teleportSource) {
 
 			C.obs_data_release(settings)
 
-			if service, ok := h.services[teleport]; ok {
+			h.Lock()
+			service, ok := h.services[teleport]
+			h.Unlock()
+
+			if ok {
 				var err error
 
 				c, err = net.Dial("tcp", service.address+":"+strconv.Itoa(service.port))
