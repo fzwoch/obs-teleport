@@ -16,7 +16,28 @@ Check here for a starting point:
 
 https://obsproject.com/forum/resources/obs-and-obs-studio-install-plugins-windows.421/
 
+Binaries can be grabbed from the [Releases] section.
 
-## Setup
+[Releases]: https://github.com/fzwoch/obs-teleport/releases
 
-[..]
+
+## Setup Sender
+
+Go to `Tools -> Teleport`.
+
+![](teleport-tools.png)
+
+Check `Teleport Enabled`.
+
+![](teleport-output.png)
+
+
+## Setup Receiver
+
+Go to your Scene's `Sources -> Add -> Teleport`.
+
+![](teleport-add.png)
+
+Select a detected stream from the `Teleport `drop down.
+
+![](teleport-source.png)
