@@ -38,6 +38,6 @@ Go to your Scene's `Sources -> Add -> Teleport`.
 
 ![](teleport-add.png)
 
-Select a detected stream from the `Teleport `drop down.
+Select a detected stream from the `Teleport` drop down.
 
 ![](teleport-source.png)
