@@ -209,14 +209,25 @@ func source_loop(h *teleportSource) {
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
 
-	var c net.Conn
+	var (
+		c         net.Conn
+		connMutex sync.Mutex
+		shutdown  bool
+	)
 
 	dial := make(chan struct{})
 	defer func() {
 		close(dial)
+
+		connMutex.Lock()
+
+		shutdown = true
+
 		if c != nil {
 			c.Close()
 		}
+
+		connMutex.Unlock()
 	}()
 
 	h.Add(1)
@@ -244,7 +255,15 @@ func source_loop(h *teleportSource) {
 			if ok {
 				var err error
 
+				connMutex.Lock()
+
+				if shutdown {
+					goto wait
+				}
+
 				c, err = net.Dial("tcp", service.address+":"+strconv.Itoa(service.port))
+				connMutex.Unlock()
+
 				if err != nil {
 					log.Println(err)
 					time.Sleep(time.Second)
