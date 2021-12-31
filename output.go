@@ -36,7 +36,6 @@ import (
 	"runtime/cgo"
 	"strconv"
 	"sync"
-	"time"
 	"unsafe"
 
 	"github.com/pixiv/go-libjpeg/jpeg"
@@ -168,7 +167,11 @@ func output_raw_video(data C.uintptr_t, frame *C.struct_video_data) {
 	h.data = append(h.data, j)
 	h.Unlock()
 
+	h.Add(1)
+
 	go func(j *jpegInfo, img *image.YCbCr) {
+		defer h.Done()
+
 		jpeg.Encode(&j.b, img, &jpeg.EncoderOptions{
 			Quality: h.quality,
 		})
@@ -238,20 +241,6 @@ func output_loop(h *teleportOutput) {
 	defer h.Done()
 
 	defer func() {
-		for {
-			h.Lock()
-			len := len(h.data)
-			h.Unlock()
-
-			if len == 0 {
-				break
-			}
-
-			time.Sleep(time.Millisecond)
-		}
-	}()
-
-	defer func() {
 		h.Lock()
 		defer h.Unlock()
 
@@ -267,7 +256,11 @@ func output_loop(h *teleportOutput) {
 	}
 	defer l.Close()
 
+	h.Add(1)
+
 	go func() {
+		defer h.Done()
+
 		for {
 			c, err := l.Accept()
 			if err != nil {
