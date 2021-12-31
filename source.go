@@ -262,6 +262,7 @@ func source_loop(h *teleportSource) {
 				}
 
 				c, err = net.Dial("tcp", service.address+":"+strconv.Itoa(service.port))
+
 				connMutex.Unlock()
 
 				if err != nil {

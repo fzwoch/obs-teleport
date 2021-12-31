@@ -129,9 +129,13 @@ func obs_module_load() C.bool {
 
 	C.obs_frontend_add_tools_menu_item(frontend_str, C.obs_frontend_cb(unsafe.Pointer(C.frontend_cb)), nil)
 
+	// this is just here to have a way to show some UI properties for the output module.
+	// the frontend API has no way to display output properties, only sources.
+	// so we have a dummy source just for the purpose of the interactive property page.
 	C.obs_register_source_s(&C.struct_obs_source_info{
 		id:             dummy_str,
 		_type:          C.OBS_SOURCE_TYPE_FILTER,
+		output_flags:   C.OBS_SOURCE_CAP_DISABLED,
 		get_name:       C.get_name_t(unsafe.Pointer(C.dummy_get_name)),
 		create:         C.source_create_t(unsafe.Pointer(C.dummy_create)),
 		destroy:        C.destroy_t(unsafe.Pointer(C.dummy_destroy)),
