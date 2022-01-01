@@ -67,7 +67,7 @@ package main
 // extern void output_stop(uintptr_t data, uint64_t ts);
 //
 // extern void frontend_cb(uintptr_t data);
-//
+// extern void frontend_event_cb(enum obs_frontend_event event, uintptr_t data);
 import "C"
 import (
 	"os"
@@ -128,6 +128,7 @@ func obs_module_load() C.bool {
 	}, C.sizeof_struct_obs_output_info)
 
 	C.obs_frontend_add_tools_menu_item(frontend_str, C.obs_frontend_cb(unsafe.Pointer(C.frontend_cb)), nil)
+	C.obs_frontend_add_event_callback(C.obs_frontend_event_cb(unsafe.Pointer(C.frontend_event_cb)), nil)
 
 	// this is just here to have a way to show some UI properties for the output module.
 	// the frontend API has no way to display output properties, only sources.

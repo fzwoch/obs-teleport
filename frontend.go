@@ -40,6 +40,16 @@ func frontend_cb(data C.uintptr_t) {
 	C.obs_frontend_open_source_properties(dummy)
 }
 
+//export frontend_event_cb
+func frontend_event_cb(event C.enum_obs_frontend_event, data C.uintptr_t) {
+	switch event {
+	case C.OBS_FRONTEND_EVENT_SCRIPTING_SHUTDOWN:
+		if C.obs_output_active(output) {
+			C.obs_output_stop(output)
+		}
+	}
+}
+
 //export dummy_get_name
 func dummy_get_name(type_data C.uintptr_t) *C.char {
 	return nil
