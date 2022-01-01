@@ -23,7 +23,7 @@ Binaries can be grabbed from the [Releases] section.
 
 ## Setup Sender
 
-Go to `Tools -> Teleport`.
+Go to `Tools → Teleport`.
 
 ![](teleport-tools.png)
 
@@ -34,7 +34,7 @@ Check `Teleport Enabled`.
 
 ## Setup Receiver
 
-Go to your Scene's `Sources -> Add -> Teleport`.
+In your Scene do `Sources → Add → Teleport`.
 
 ![](teleport-add.png)
 
