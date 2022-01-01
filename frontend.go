@@ -43,7 +43,7 @@ func frontend_cb(data C.uintptr_t) {
 //export frontend_event_cb
 func frontend_event_cb(event C.enum_obs_frontend_event, data C.uintptr_t) {
 	switch event {
-	case OBS_FRONTEND_EVENT_EXIT:
+	case C.OBS_FRONTEND_EVENT_EXIT:
 		//case C.OBS_FRONTEND_EVENT_SCRIPTING_SHUTDOWN:
 		if C.obs_output_active(output) {
 			C.obs_output_stop(output)
