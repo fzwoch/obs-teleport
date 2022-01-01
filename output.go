@@ -51,12 +51,13 @@ type jpegInfo struct {
 type teleportOutput struct {
 	sync.Mutex
 	sync.WaitGroup
-	conn    net.Conn
-	done    chan interface{}
-	output  *C.obs_output_t
-	data    []*jpegInfo
-	quality int
-	stopped bool
+	conn      net.Conn
+	done      chan interface{}
+	output    *C.obs_output_t
+	imageLock sync.Mutex
+	data      []*jpegInfo
+	quality   int
+	stopped   bool
 }
 
 //export output_get_name
@@ -163,9 +164,9 @@ func output_raw_video(data C.uintptr_t, frame *C.struct_video_data) {
 		timestamp: int64(frame.timestamp),
 	}
 
-	h.Lock()
+	h.imageLock.Lock()
 	h.data = append(h.data, j)
-	h.Unlock()
+	h.imageLock.Unlock()
 
 	h.Add(1)
 
@@ -176,8 +177,8 @@ func output_raw_video(data C.uintptr_t, frame *C.struct_video_data) {
 			Quality: h.quality,
 		})
 
-		h.Lock()
-		defer h.Unlock()
+		h.imageLock.Lock()
+		defer h.imageLock.Unlock()
 
 		j.done = true
 
@@ -280,7 +281,8 @@ func output_loop(h *teleportOutput) {
 			err = binary.Read(h.conn, binary.LittleEndian, &header)
 			if err != nil {
 				log.Println(err)
-				return
+				h.Unlock()
+				continue
 			}
 			if header.Magic != [4]byte{'O', 'P', 'T', 'S'} {
 				panic("")
@@ -291,7 +293,8 @@ func output_loop(h *teleportOutput) {
 			_, err = io.ReadFull(h.conn, b)
 			if err != nil {
 				log.Println(err)
-				return
+				h.Unlock()
+				continue
 			}
 
 			var options options
