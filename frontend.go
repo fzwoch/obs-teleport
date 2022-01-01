@@ -40,22 +40,6 @@ func frontend_cb(data C.uintptr_t) {
 	C.obs_frontend_open_source_properties(dummy)
 }
 
-func frontend_start() {
-	if C.obs_output_active(output) {
-		frontend_stop()
-	}
-
-	C.obs_output_start(output)
-}
-
-func frontend_stop() {
-	if !C.obs_output_active(output) {
-		return
-	}
-
-	C.obs_output_stop(output)
-}
-
 //export dummy_get_name
 func dummy_get_name(type_data C.uintptr_t) *C.char {
 	return nil
@@ -96,8 +80,8 @@ func dummy_update(data C.uintptr_t, settings *C.obs_data_t) {
 	enable := C.obs_data_get_bool(settings, obs_teleport_enable)
 
 	if enable {
-		frontend_start()
+		C.obs_output_start(output)
 	} else {
-		frontend_stop()
+		C.obs_output_stop(output)
 	}
 }

@@ -158,8 +158,6 @@ func obs_module_load() C.bool {
 
 //export obs_module_unload
 func obs_module_unload() {
-	frontend_stop()
-
 	dir, _ := os.UserConfigDir()
 
 	settings := C.obs_source_get_settings(dummy)

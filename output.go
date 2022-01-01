@@ -57,7 +57,6 @@ type teleportOutput struct {
 	imageLock sync.Mutex
 	data      []*jpegInfo
 	quality   int
-	stopped   bool
 }
 
 //export output_get_name
@@ -104,8 +103,6 @@ func output_start(data C.uintptr_t) C.bool {
 		return false
 	}
 
-	h.stopped = false
-
 	C.obs_output_begin_data_capture(h.output, 0)
 
 	h.Add(1)
@@ -118,12 +115,6 @@ func output_start(data C.uintptr_t) C.bool {
 //export output_stop
 func output_stop(data C.uintptr_t, ts C.uint64_t) {
 	h := cgo.Handle(data).Value().(*teleportOutput)
-
-	if h.stopped {
-		return
-	}
-
-	h.stopped = true
 
 	C.obs_output_end_data_capture(h.output)
 
