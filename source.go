@@ -233,19 +233,25 @@ func source_loop(h *teleportSource) {
 	go func() {
 		defer h.Done()
 
+		settings := C.obs_source_get_settings(h.source)
+
+		tel := C.CString("teleport_list")
+		teleport := C.GoString(C.obs_data_get_string(settings, tel))
+		C.free(unsafe.Pointer(tel))
+
+		qua := C.CString("quality")
+		quality := C.obs_data_get_int(settings, qua)
+		C.free(unsafe.Pointer(qua))
+
+		C.obs_data_release(settings)
+
+		if teleport == "" {
+			C.obs_source_output_video(h.source, nil)
+
+			return
+		}
+
 		for {
-			settings := C.obs_source_get_settings(h.source)
-
-			tel := C.CString("teleport_list")
-			teleport := C.GoString(C.obs_data_get_string(settings, tel))
-			C.free(unsafe.Pointer(tel))
-
-			qua := C.CString("quality")
-			quality := C.obs_data_get_int(settings, qua)
-			C.free(unsafe.Pointer(qua))
-
-			C.obs_data_release(settings)
-
 			h.Lock()
 			service, ok := h.services[teleport]
 			h.Unlock()
