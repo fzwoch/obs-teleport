@@ -260,6 +260,8 @@ func source_loop(h *teleportSource) {
 				connMutex.Lock()
 
 				if shutdown {
+					connMutex.Unlock()
+
 					goto wait
 				}
 
