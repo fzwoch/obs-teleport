@@ -187,6 +187,8 @@ func output_raw_video(data C.uintptr_t, frame *C.struct_video_data) {
 				h.data[0].b.Bytes(),
 			}
 
+			h.Lock()
+
 			if h.conn != nil {
 				_, err := buffers.WriteTo(h.conn)
 				if err != nil {
@@ -194,6 +196,8 @@ func output_raw_video(data C.uintptr_t, frame *C.struct_video_data) {
 					h.conn = nil
 				}
 			}
+
+			h.Unlock()
 
 			h.data = h.data[1:]
 		}
