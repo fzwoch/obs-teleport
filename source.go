@@ -116,7 +116,7 @@ func source_get_properties(data C.uintptr_t) *C.obs_properties_t {
 	properties := C.obs_properties_create()
 
 	prop := C.obs_properties_add_list(properties, C.CString("teleport_list"), frontend_str, C.OBS_COMBO_TYPE_LIST, C.OBS_COMBO_FORMAT_STRING)
-	C.obs_property_list_add_string(prop, C.CString("- Disable -"), C.CString(""))
+	C.obs_property_list_add_string(prop, C.CString("- Disabled -"), C.CString(""))
 
 	h.Lock()
 	for key, service := range h.services {
