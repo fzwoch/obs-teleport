@@ -132,7 +132,7 @@ func source_get_properties(data C.uintptr_t) *C.obs_properties_t {
 
 	C.obs_properties_add_int_slider(properties, C.CString("quality"), C.CString("Quality"), 0, 100, 1)
 
-	prop = C.obs_properties_add_bool(properties, C.CString("use_local_timestamps"), C.CString("Use local machine's timestamps"))
+	prop = C.obs_properties_add_bool(properties, C.CString("ignore_timestamps"), C.CString("Ignore timestamps"))
 	C.obs_property_set_long_description(prop, C.CString("May help against long time synchronization clock drifts, but may also increase jitter."))
 
 	return properties
@@ -146,7 +146,7 @@ func source_get_defaults(settings *C.obs_data_t) {
 
 	C.obs_data_set_default_string(settings, tel, str)
 	C.obs_data_set_default_int(settings, qua, 90)
-	C.obs_data_set_default_bool(settings, C.CString("use_local_timestamps"), false)
+	C.obs_data_set_default_bool(settings, C.CString("ignore_timestamps"), false)
 
 	C.free(unsafe.Pointer(tel))
 	C.free(unsafe.Pointer(str))
@@ -251,7 +251,11 @@ func source_loop(h *teleportSource) {
 			h.Unlock()
 
 			if ok {
-				var err error
+				var (
+					err        error
+					videoCount uint64
+					audioCount uint64
+				)
 
 				connMutex.Lock()
 
@@ -360,8 +364,10 @@ func source_loop(h *teleportSource) {
 								h.frame.data[2] = (*C.uint8_t)(unsafe.Pointer(&h.images[0].image.Cr[0]))
 
 								settings := C.obs_source_get_settings(h.source)
-								if C.obs_data_get_bool(settings, C.CString("use_local_timestamps")) {
-									h.frame.timestamp = C.os_gettime_ns()
+								if C.obs_data_get_bool(settings, C.CString("ignore_timestamps")) {
+									h.frame.timestamp = C.uint64_t(videoCount)
+									videoCount++
+
 								}
 								C.obs_data_release(settings)
 
@@ -383,8 +389,9 @@ func source_loop(h *teleportSource) {
 						h.audio.data[0] = (*C.uint8_t)(unsafe.Pointer(&b[0]))
 
 						settings := C.obs_source_get_settings(h.source)
-						if C.obs_data_get_bool(settings, C.CString("use_local_timestamps")) {
-							h.audio.timestamp = C.os_gettime_ns()
+						if C.obs_data_get_bool(settings, C.CString("ignore_timestamps")) {
+							h.audio.timestamp = C.uint64_t(audioCount)
+							audioCount++
 						}
 						C.obs_data_release(settings)
 
