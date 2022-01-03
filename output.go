@@ -139,8 +139,8 @@ func output_raw_video(data C.uintptr_t, frame *C.struct_video_data) {
 	width := int(C.obs_output_get_width(h.output))
 	height := int(C.obs_output_get_height(h.output))
 
-	paddedWidth := width + width%16
-	paddedHeight := height + height%16
+	paddedWidth := width + 16
+	paddedHeight := height + 16
 
 	img := &image.YCbCr{
 		Rect: image.Rectangle{
