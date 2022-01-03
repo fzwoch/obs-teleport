@@ -103,11 +103,11 @@ func output_start(data C.uintptr_t) C.bool {
 		return false
 	}
 
-	C.obs_output_begin_data_capture(h.output, 0)
-
 	h.Add(1)
 
 	go output_loop(h)
+
+	C.obs_output_begin_data_capture(h.output, 0)
 
 	return true
 }
@@ -207,6 +207,16 @@ func output_raw_video(data C.uintptr_t, frame *C.struct_video_data) {
 //export output_raw_audio
 func output_raw_audio(data C.uintptr_t, frames *C.struct_audio_data) {
 	h := cgo.Handle(data).Value().(*teleportOutput)
+
+	h.Lock()
+
+	if h.conn == nil {
+		h.Unlock()
+
+		return
+	}
+
+	h.Unlock()
 
 	b := bytes.Buffer{}
 
