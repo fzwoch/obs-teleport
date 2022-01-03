@@ -136,19 +136,31 @@ func output_raw_video(data C.uintptr_t, frame *C.struct_video_data) {
 
 	h.Unlock()
 
-	img := image.NewYCbCr(
-		image.Rectangle{
+	width := int(C.obs_output_get_width(h.output))
+	height := int(C.obs_output_get_height(h.output))
+
+	padWidth := width % 16
+	padHeight := height % 16
+
+	img := &image.YCbCr{
+		Rect: image.Rectangle{
 			Min: image.Point{0, 0},
 			Max: image.Point{
-				X: int(C.obs_output_get_width(h.output)),
-				Y: int(C.obs_output_get_height(h.output)),
+				X: width,
+				Y: height,
 			},
 		},
-		image.YCbCrSubsampleRatio420)
+		YStride:        width,
+		CStride:        width / 2,
+		Y:              make([]byte, (width+padWidth)*(height+padHeight)),
+		Cb:             make([]byte, (width+padWidth)*(height+padHeight)/4),
+		Cr:             make([]byte, (width+padWidth)*(height+padHeight)/4),
+		SubsampleRatio: image.YCbCrSubsampleRatio420,
+	}
 
-	copy(img.Y, unsafe.Slice((*byte)(frame.data[0]), len(img.Y)))
-	copy(img.Cb, unsafe.Slice((*byte)(frame.data[1]), len(img.Cb)))
-	copy(img.Cr, unsafe.Slice((*byte)(frame.data[2]), len(img.Cr)))
+	copy(img.Y, unsafe.Slice((*byte)(frame.data[0]), width*height))
+	copy(img.Cb, unsafe.Slice((*byte)(frame.data[1]), width*height/4))
+	copy(img.Cr, unsafe.Slice((*byte)(frame.data[2]), width*height/4))
 
 	j := &jpegInfo{
 		b:         bytes.Buffer{},
