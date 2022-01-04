@@ -343,7 +343,7 @@ func output_loop(h *teleportOutput) {
 		p, _ := strconv.Atoi(port)
 
 		settings := C.obs_source_get_settings(dummy)
-		name := C.GoString(C.obs_data_get_string(settings, C.CString("identifier")))
+		name := C.GoString(C.obs_data_get_string(settings, identifier_str))
 		C.obs_data_release(settings)
 
 		if name == "" {
