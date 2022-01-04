@@ -22,7 +22,6 @@ package main
 
 //
 // #include <obs-module.h>
-// #include <util/platform.h>
 //
 import "C"
 import (

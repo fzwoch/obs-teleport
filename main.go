@@ -68,6 +68,7 @@ package main
 //
 // extern void frontend_cb(uintptr_t data);
 // extern void frontend_event_cb(enum obs_frontend_event event, uintptr_t data);
+//
 import "C"
 import (
 	"os"
