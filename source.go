@@ -271,7 +271,12 @@ func source_loop(h *teleportSource) {
 					goto wait
 				}
 
-				c, err = net.Dial("tcp", service.address+":"+strconv.Itoa(service.port))
+				if c != nil {
+					c.Close()
+					c = nil
+				}
+
+				c, err = net.DialTimeout("tcp", service.address+":"+strconv.Itoa(service.port), time.Second)
 
 				connMutex.Unlock()
 
