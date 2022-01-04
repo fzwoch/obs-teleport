@@ -23,7 +23,6 @@ package main
 //
 // #include <obs-module.h>
 // #include <obs-frontend-api.h>
-// #include <stdlib.h>
 //
 import "C"
 import (

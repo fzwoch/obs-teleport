@@ -24,7 +24,6 @@ package main
 // #include <obs-module.h>
 // #include <obs-frontend-api.h>
 // #include <util/platform.h>
-// #include <stdlib.h>
 //
 // typedef char* (*get_name_t)(uintptr_t type_data);
 // extern char* source_get_name(uintptr_t type_data);
