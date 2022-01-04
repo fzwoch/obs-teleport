@@ -71,6 +71,16 @@ type teleportSource struct {
 	audio     *C.struct_obs_source_audio
 }
 
+var (
+	teleport_list_str                 = C.CString("teleport_list")
+	quality_str                       = C.CString("quality")
+	quality_readble_str               = C.CString("Quality")
+	ignore_timestamps_str             = C.CString("ignore_timestamps")
+	ignore_timestamps_readable_str    = C.CString("Ignore timestamps")
+	ignore_timestamps_description_str = C.CString("May help against long time synchronization clock drifts, but may also increase jitter.")
+	disabled_str                      = C.CString("- Disabled -")
+)
+
 //export source_get_name
 func source_get_name(type_data C.uintptr_t) *C.char {
 	return frontend_str
@@ -116,8 +126,8 @@ func source_get_properties(data C.uintptr_t) *C.obs_properties_t {
 
 	properties := C.obs_properties_create()
 
-	prop := C.obs_properties_add_list(properties, C.CString("teleport_list"), frontend_str, C.OBS_COMBO_TYPE_LIST, C.OBS_COMBO_FORMAT_STRING)
-	C.obs_property_list_add_string(prop, C.CString("- Disabled -"), C.CString(""))
+	prop := C.obs_properties_add_list(properties, teleport_list_str, frontend_str, C.OBS_COMBO_TYPE_LIST, C.OBS_COMBO_FORMAT_STRING)
+	C.obs_property_list_add_string(prop, disabled_str, empty_str)
 
 	h.Lock()
 	for key, service := range h.services {
@@ -131,27 +141,19 @@ func source_get_properties(data C.uintptr_t) *C.obs_properties_t {
 	}
 	h.Unlock()
 
-	C.obs_properties_add_int_slider(properties, C.CString("quality"), C.CString("Quality"), 0, 100, 1)
+	C.obs_properties_add_int_slider(properties, quality_str, quality_readble_str, 0, 100, 1)
 
-	prop = C.obs_properties_add_bool(properties, C.CString("ignore_timestamps"), C.CString("Ignore timestamps"))
-	C.obs_property_set_long_description(prop, C.CString("May help against long time synchronization clock drifts, but may also increase jitter."))
+	prop = C.obs_properties_add_bool(properties, ignore_timestamps_str, ignore_timestamps_readable_str)
+	C.obs_property_set_long_description(prop, ignore_timestamps_description_str)
 
 	return properties
 }
 
 //export source_get_defaults
 func source_get_defaults(settings *C.obs_data_t) {
-	tel := C.CString("teleport_list")
-	str := C.CString("")
-	qua := C.CString("quality")
-
-	C.obs_data_set_default_string(settings, tel, str)
-	C.obs_data_set_default_int(settings, qua, 90)
-	C.obs_data_set_default_bool(settings, C.CString("ignore_timestamps"), false)
-
-	C.free(unsafe.Pointer(tel))
-	C.free(unsafe.Pointer(str))
-	C.free(unsafe.Pointer(qua))
+	C.obs_data_set_default_string(settings, teleport_list_str, empty_str)
+	C.obs_data_set_default_int(settings, quality_str, 90)
+	C.obs_data_set_default_bool(settings, ignore_timestamps_str, false)
 }
 
 //export source_update
@@ -236,17 +238,9 @@ func source_loop(h *teleportSource) {
 
 		settings := C.obs_source_get_settings(h.source)
 
-		tel := C.CString("teleport_list")
-		teleport := C.GoString(C.obs_data_get_string(settings, tel))
-		C.free(unsafe.Pointer(tel))
-
-		qua := C.CString("quality")
-		quality := C.obs_data_get_int(settings, qua)
-		C.free(unsafe.Pointer(qua))
-
-		ign := C.CString("ignore_timestamps")
-		ignore_timestamps := C.obs_data_get_bool(settings, ign)
-		C.free(unsafe.Pointer(ign))
+		teleport := C.GoString(C.obs_data_get_string(settings, teleport_list_str))
+		quality := C.obs_data_get_int(settings, quality_str)
+		ignore_timestamps := C.obs_data_get_bool(settings, ignore_timestamps_str)
 
 		C.obs_data_release(settings)
 
