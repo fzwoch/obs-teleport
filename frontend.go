@@ -31,8 +31,12 @@ import (
 )
 
 var (
-	obs_teleport_enable = C.CString("teleport-enable")
-	obs_teleport_str    = C.CString("Teleport Enabled")
+	teleport_enable            = C.CString("teleport-enable")
+	teleport_str               = C.CString("Teleport Enabled")
+	identifier_str             = C.CString("identifier")
+	identifier_readable_str    = C.CString("Identifier")
+	identifier_description_str = C.CString("Name of the stream. Uses hostname if blank.")
+	empty_str                  = C.CString("")
 )
 
 //export frontend_cb
@@ -44,7 +48,6 @@ func frontend_cb(data C.uintptr_t) {
 func frontend_event_cb(event C.enum_obs_frontend_event, data C.uintptr_t) {
 	switch event {
 	case C.OBS_FRONTEND_EVENT_EXIT:
-		//case C.OBS_FRONTEND_EVENT_SCRIPTING_SHUTDOWN:
 		if C.obs_output_active(output) {
 			C.obs_output_stop(output)
 		}
@@ -72,25 +75,23 @@ func dummy_destroy(data C.uintptr_t) {
 func dummy_get_properties(data C.uintptr_t) *C.obs_properties_t {
 	properties := C.obs_properties_create()
 
-	C.obs_properties_add_bool(properties, obs_teleport_enable, obs_teleport_str)
+	C.obs_properties_add_bool(properties, teleport_enable, teleport_str)
 
-	prop := C.obs_properties_add_text(properties, C.CString("identifier"), C.CString("Identifier"), C.OBS_TEXT_DEFAULT)
-	C.obs_property_set_long_description(prop, C.CString("Name of the stream. Uses hostname if blank."))
+	prop := C.obs_properties_add_text(properties, identifier_str, identifier_readable_str, C.OBS_TEXT_DEFAULT)
+	C.obs_property_set_long_description(prop, identifier_description_str)
 
 	return properties
 }
 
 //export dummy_get_defaults
 func dummy_get_defaults(settings *C.obs_data_t) {
-	C.obs_data_set_default_bool(settings, obs_teleport_enable, false)
-	C.obs_data_set_default_string(settings, C.CString("identifier"), C.CString(""))
+	C.obs_data_set_default_bool(settings, teleport_enable, false)
+	C.obs_data_set_default_string(settings, identifier_str, empty_str)
 }
 
 //export dummy_update
 func dummy_update(data C.uintptr_t, settings *C.obs_data_t) {
-	enable := C.obs_data_get_bool(settings, obs_teleport_enable)
-
-	if enable {
+	if C.obs_data_get_bool(settings, teleport_enable) {
 		C.obs_output_start(output)
 	} else {
 		C.obs_output_stop(output)
