@@ -29,11 +29,13 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"image"
 	"io"
 	"log"
 	"net"
+	"os"
 	"runtime/cgo"
 	"strconv"
 	"sync"
@@ -282,7 +284,9 @@ func source_loop(h *teleportSource) {
 
 				if err != nil {
 					log.Println(err)
-					time.Sleep(time.Second)
+					if !errors.Is(err, os.ErrDeadlineExceeded) {
+						time.Sleep(time.Second)
+					}
 					goto wait
 				}
 
@@ -413,10 +417,6 @@ func source_loop(h *teleportSource) {
 						h.audio.data[0] = nil
 					}
 				}
-			} else {
-				C.obs_source_output_video(h.source, nil)
-
-				time.Sleep(time.Second)
 			}
 
 		wait:
@@ -424,6 +424,7 @@ func source_loop(h *teleportSource) {
 			case <-dial:
 				return
 			default:
+				C.obs_source_output_video(h.source, nil)
 			}
 		}
 	}()
