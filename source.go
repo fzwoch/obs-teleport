@@ -417,6 +417,8 @@ func source_loop(h *teleportSource) {
 						h.audio.data[0] = nil
 					}
 				}
+			} else {
+				time.Sleep(time.Second)
 			}
 
 		wait:
