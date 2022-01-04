@@ -244,6 +244,10 @@ func source_loop(h *teleportSource) {
 		quality := C.obs_data_get_int(settings, qua)
 		C.free(unsafe.Pointer(qua))
 
+		ign := C.CString("ignore_timestamps")
+		ignore_timestamps := C.obs_data_get_bool(settings, ign)
+		C.free(unsafe.Pointer(ign))
+
 		C.obs_data_release(settings)
 
 		if teleport == "" {
@@ -387,10 +391,9 @@ func source_loop(h *teleportSource) {
 							h.frame.data[2] = (*C.uint8_t)(unsafe.Pointer(&h.images[0].image.Cr[0]))
 
 							settings := C.obs_source_get_settings(h.source)
-							if C.obs_data_get_bool(settings, C.CString("ignore_timestamps")) {
+							if ignore_timestamps {
 								h.frame.timestamp = C.uint64_t(videoCount)
 								videoCount++
-
 							}
 							C.obs_data_release(settings)
 
@@ -412,7 +415,7 @@ func source_loop(h *teleportSource) {
 					h.audio.data[0] = (*C.uint8_t)(unsafe.Pointer(&b[0]))
 
 					settings := C.obs_source_get_settings(h.source)
-					if C.obs_data_get_bool(settings, C.CString("ignore_timestamps")) {
+					if ignore_timestamps {
 						h.audio.timestamp = C.uint64_t(audioCount)
 						audioCount++
 					}
