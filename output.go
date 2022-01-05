@@ -30,7 +30,6 @@ import (
 	"encoding/json"
 	"image"
 	"io"
-	"log"
 	"net"
 	"os"
 	"runtime/cgo"
@@ -297,7 +296,6 @@ func output_loop(h *teleportOutput) {
 
 			err = binary.Read(h.conn, binary.LittleEndian, &header)
 			if err != nil {
-				log.Println(err)
 				h.Unlock()
 				continue
 			}
@@ -309,7 +307,6 @@ func output_loop(h *teleportOutput) {
 
 			_, err = io.ReadFull(h.conn, b)
 			if err != nil {
-				log.Println(err)
 				h.Unlock()
 				continue
 			}

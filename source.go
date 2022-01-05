@@ -32,7 +32,6 @@ import (
 	"fmt"
 	"image"
 	"io"
-	"log"
 	"net"
 	"os"
 	"runtime/cgo"
@@ -287,7 +286,6 @@ func source_loop(h *teleportSource) {
 			connMutex.Unlock()
 
 			if err != nil {
-				log.Println(err)
 				if !errors.Is(err, os.ErrDeadlineExceeded) {
 					time.Sleep(time.Second)
 				}
@@ -298,7 +296,6 @@ func source_loop(h *teleportSource) {
 				Quality: int(quality),
 			})
 			if err != nil {
-				log.Println(err)
 				continue
 			}
 
@@ -316,7 +313,6 @@ func source_loop(h *teleportSource) {
 
 			_, err = buffers.WriteTo(c)
 			if err != nil {
-				log.Println(err)
 				continue
 			}
 
@@ -325,7 +321,6 @@ func source_loop(h *teleportSource) {
 
 				err = binary.Read(c, binary.LittleEndian, &header)
 				if err != nil {
-					log.Println(err)
 					break
 				}
 				switch header.Type {
@@ -339,7 +334,6 @@ func source_loop(h *teleportSource) {
 
 				_, err := io.ReadFull(c, b)
 				if err != nil {
-					log.Println(err)
 					break
 				}
 
