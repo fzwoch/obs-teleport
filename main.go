@@ -66,6 +66,9 @@ package main
 // typedef void (*stop_t)(uintptr_t data, uint64_t ts);
 // extern void output_stop(uintptr_t data, uint64_t ts);
 //
+// typedef int (*get_dropped_frames_t)(uintptr_t data);
+// extern int output_get_dropped_frames(uintptr_t data);
+//
 // extern void frontend_cb(uintptr_t data);
 // extern void frontend_event_cb(enum obs_frontend_event event, uintptr_t data);
 //
@@ -117,15 +120,16 @@ func obs_module_load() C.bool {
 	}, C.sizeof_struct_obs_source_info)
 
 	C.obs_register_output_s(&C.struct_obs_output_info{
-		id:        output_str,
-		flags:     C.OBS_OUTPUT_AV,
-		get_name:  C.get_name_t(unsafe.Pointer(C.output_get_name)),
-		create:    C.output_create_t(unsafe.Pointer(C.output_create)),
-		destroy:   C.destroy_t(unsafe.Pointer(C.output_destroy)),
-		start:     C.start_t(unsafe.Pointer(C.output_start)),
-		stop:      C.stop_t(unsafe.Pointer(C.output_stop)),
-		raw_video: C.raw_video_t(unsafe.Pointer(C.output_raw_video)),
-		raw_audio: C.raw_audio_t(unsafe.Pointer(C.output_raw_audio)),
+		id:                 output_str,
+		flags:              C.OBS_OUTPUT_AV,
+		get_name:           C.get_name_t(unsafe.Pointer(C.output_get_name)),
+		create:             C.output_create_t(unsafe.Pointer(C.output_create)),
+		destroy:            C.destroy_t(unsafe.Pointer(C.output_destroy)),
+		start:              C.start_t(unsafe.Pointer(C.output_start)),
+		stop:               C.stop_t(unsafe.Pointer(C.output_stop)),
+		raw_video:          C.raw_video_t(unsafe.Pointer(C.output_raw_video)),
+		raw_audio:          C.raw_audio_t(unsafe.Pointer(C.output_raw_audio)),
+		get_dropped_frames: C.get_dropped_frames_t(unsafe.Pointer(C.output_get_dropped_frames)),
 	}, C.sizeof_struct_obs_output_info)
 
 	C.obs_frontend_add_tools_menu_item(frontend_str, C.obs_frontend_cb(unsafe.Pointer(C.frontend_cb)), nil)

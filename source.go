@@ -345,6 +345,11 @@ func source_loop(h *teleportSource) {
 					}
 
 					h.imageLock.Lock()
+					if len(h.images) > 20 {
+						h.imageLock.Unlock()
+						continue
+					}
+
 					h.images = append(h.images, info)
 					h.imageLock.Unlock()
 

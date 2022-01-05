@@ -50,12 +50,13 @@ type jpegInfo struct {
 type teleportOutput struct {
 	sync.Mutex
 	sync.WaitGroup
-	conn      net.Conn
-	done      chan interface{}
-	output    *C.obs_output_t
-	imageLock sync.Mutex
-	data      []*jpegInfo
-	quality   int
+	conn          net.Conn
+	done          chan interface{}
+	output        *C.obs_output_t
+	imageLock     sync.Mutex
+	data          []*jpegInfo
+	quality       int
+	droppedFrames int
 }
 
 //export output_get_name
@@ -167,6 +168,12 @@ func output_raw_video(data C.uintptr_t, frame *C.struct_video_data) {
 	}
 
 	h.imageLock.Lock()
+	if len(h.data) > 20 {
+		h.droppedFrames++
+		h.imageLock.Unlock()
+		return
+	}
+
 	h.data = append(h.data, j)
 	h.imageLock.Unlock()
 
@@ -252,6 +259,16 @@ func output_raw_audio(data C.uintptr_t, frames *C.struct_audio_data) {
 			h.conn = nil
 		}
 	}
+}
+
+//export output_get_dropped_frames
+func output_get_dropped_frames(data C.uintptr_t) C.int {
+	h := cgo.Handle(data).Value().(*teleportOutput)
+
+	h.imageLock.Lock()
+	defer h.imageLock.Unlock()
+
+	return C.int(h.droppedFrames)
 }
 
 func output_loop(h *teleportOutput) {
