@@ -409,7 +409,7 @@ func source_loop(h *teleportSource) {
 
 					settings := C.obs_source_get_settings(h.source)
 					if ignore_timestamps {
-						h.audio.timestamp = C.uint64_t(audioCount)
+						h.audio.timestamp = C.uint64_t(float64(audioCount) * 1000000000.0 * (float64(h.audio.frames) / 48000.0))
 						audioCount++
 					}
 					C.obs_data_release(settings)
