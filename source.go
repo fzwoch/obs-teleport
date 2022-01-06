@@ -73,7 +73,7 @@ type teleportSource struct {
 var (
 	teleport_list_str                 = C.CString("teleport_list")
 	quality_str                       = C.CString("quality")
-	quality_readble_str               = C.CString("Quality")
+	quality_readable_str              = C.CString("Quality")
 	ignore_timestamps_str             = C.CString("ignore_timestamps")
 	ignore_timestamps_readable_str    = C.CString("Ignore Timestamps")
 	ignore_timestamps_description_str = C.CString("May help against long time synchronization clock drifts, but may also increase jitter and/or sync issues.")
@@ -140,7 +140,7 @@ func source_get_properties(data C.uintptr_t) *C.obs_properties_t {
 	}
 	h.Unlock()
 
-	C.obs_properties_add_int_slider(properties, quality_str, quality_readble_str, 0, 100, 1)
+	C.obs_properties_add_int_slider(properties, quality_str, quality_readable_str, 0, 100, 1)
 
 	prop = C.obs_properties_add_bool(properties, ignore_timestamps_str, ignore_timestamps_readable_str)
 	C.obs_property_set_long_description(prop, ignore_timestamps_description_str)
