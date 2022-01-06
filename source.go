@@ -75,8 +75,8 @@ var (
 	quality_str                       = C.CString("quality")
 	quality_readble_str               = C.CString("Quality")
 	ignore_timestamps_str             = C.CString("ignore_timestamps")
-	ignore_timestamps_readable_str    = C.CString("Ignore timestamps")
-	ignore_timestamps_description_str = C.CString("May help against long time synchronization clock drifts, but may also increase jitter.")
+	ignore_timestamps_readable_str    = C.CString("Ignore Timestamps")
+	ignore_timestamps_description_str = C.CString("May help against long time synchronization clock drifts, but may also increase jitter and/or sync issues.")
 	disabled_str                      = C.CString("- Disabled -")
 )
 
