@@ -30,12 +30,12 @@ import (
 )
 
 var (
-	teleport_enable_str          = C.CString("teleport-enabled")
-	teleport_enable_readable_str = C.CString("Teleport Enabled")
-	identifier_str               = C.CString("identifier")
-	identifier_readable_str      = C.CString("Identifier")
-	identifier_description_str   = C.CString("Name of the stream. Uses hostname if blank.")
-	empty_str                    = C.CString("")
+	teleport_enabled_str          = C.CString("teleport-enabled")
+	teleport_enabled_readable_str = C.CString("Teleport Enabled")
+	identifier_str                = C.CString("identifier")
+	identifier_readable_str       = C.CString("Identifier")
+	identifier_description_str    = C.CString("Name of the stream. Uses hostname if blank.")
+	empty_str                     = C.CString("")
 )
 
 //export frontend_cb
@@ -74,7 +74,7 @@ func dummy_destroy(data C.uintptr_t) {
 func dummy_get_properties(data C.uintptr_t) *C.obs_properties_t {
 	properties := C.obs_properties_create()
 
-	C.obs_properties_add_bool(properties, teleport_enable_str, teleport_enable_readable_str)
+	C.obs_properties_add_bool(properties, teleport_enabled_str, teleport_enabled_readable_str)
 
 	prop := C.obs_properties_add_text(properties, identifier_str, identifier_readable_str, C.OBS_TEXT_DEFAULT)
 	C.obs_property_set_long_description(prop, identifier_description_str)
@@ -84,13 +84,13 @@ func dummy_get_properties(data C.uintptr_t) *C.obs_properties_t {
 
 //export dummy_get_defaults
 func dummy_get_defaults(settings *C.obs_data_t) {
-	C.obs_data_set_default_bool(settings, teleport_enable_str, false)
+	C.obs_data_set_default_bool(settings, teleport_enabled_str, false)
 	C.obs_data_set_default_string(settings, identifier_str, empty_str)
 }
 
 //export dummy_update
 func dummy_update(data C.uintptr_t, settings *C.obs_data_t) {
-	if C.obs_data_get_bool(settings, teleport_enable_str) {
+	if C.obs_data_get_bool(settings, teleport_enabled_str) {
 		C.obs_output_start(output)
 	} else {
 		C.obs_output_stop(output)
