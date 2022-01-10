@@ -326,6 +326,8 @@ func source_loop(h *teleportSource) {
 				switch header.Type {
 				case [4]byte{'J', 'P', 'E', 'G'}:
 				case [4]byte{'W', 'A', 'V', 'E'}:
+				case [4]byte{'A', 'N', 'J', 'A'}:
+					fallthrough
 				default:
 					panic("UNKNOWN HEADER TYPE")
 				}
