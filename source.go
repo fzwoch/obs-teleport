@@ -72,6 +72,7 @@ type teleportSource struct {
 
 var (
 	teleport_list_str                 = C.CString("teleport_list")
+	teleport_list_description_str     = C.CString("Populating the list may take some time. Close and reopen the properties to update the list of found streams.")
 	quality_str                       = C.CString("quality")
 	quality_readable_str              = C.CString("Quality")
 	ignore_timestamps_str             = C.CString("ignore_timestamps")
@@ -126,6 +127,7 @@ func source_get_properties(data C.uintptr_t) *C.obs_properties_t {
 	properties := C.obs_properties_create()
 
 	prop := C.obs_properties_add_list(properties, teleport_list_str, frontend_str, C.OBS_COMBO_TYPE_LIST, C.OBS_COMBO_FORMAT_STRING)
+	C.obs_property_set_long_description(prop, teleport_list_description_str)
 	C.obs_property_list_add_string(prop, disabled_str, empty_str)
 
 	h.Lock()
