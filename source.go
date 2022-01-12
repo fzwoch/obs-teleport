@@ -23,6 +23,8 @@ package main
 //
 // #include <obs-module.h>
 //
+// extern bool refresh_list(obs_properties_t *props, obs_property_t *property, uintptr_t data);
+//
 import "C"
 import (
 	"bytes"
@@ -72,7 +74,7 @@ type teleportSource struct {
 
 var (
 	teleport_list_str                 = C.CString("teleport_list")
-	teleport_list_description_str     = C.CString("Populating the list may take some time. Close and reopen the properties to update the list of found streams.")
+	refresh_readable_str              = C.CString("Refresh List")
 	quality_str                       = C.CString("quality")
 	quality_readable_str              = C.CString("Quality")
 	ignore_timestamps_str             = C.CString("ignore_timestamps")
@@ -120,14 +122,13 @@ func source_destroy(data C.uintptr_t) {
 	cgo.Handle(data).Delete()
 }
 
-//export source_get_properties
-func source_get_properties(data C.uintptr_t) *C.obs_properties_t {
+//export refresh_list
+func refresh_list(props *C.obs_properties_t, property *C.obs_property_t, data C.uintptr_t) C.bool {
 	h := cgo.Handle(data).Value().(*teleportSource)
 
-	properties := C.obs_properties_create()
+	prop := C.obs_properties_get(props, teleport_list_str)
+	C.obs_property_list_clear(prop)
 
-	prop := C.obs_properties_add_list(properties, teleport_list_str, frontend_str, C.OBS_COMBO_TYPE_LIST, C.OBS_COMBO_FORMAT_STRING)
-	C.obs_property_set_long_description(prop, teleport_list_description_str)
 	C.obs_property_list_add_string(prop, disabled_str, empty_str)
 
 	h.Lock()
@@ -142,9 +143,20 @@ func source_get_properties(data C.uintptr_t) *C.obs_properties_t {
 	}
 	h.Unlock()
 
+	return true
+}
+
+//export source_get_properties
+func source_get_properties(data C.uintptr_t) *C.obs_properties_t {
+	properties := C.obs_properties_create()
+
+	C.obs_properties_add_list(properties, teleport_list_str, frontend_str, C.OBS_COMBO_TYPE_LIST, C.OBS_COMBO_FORMAT_STRING)
+	refresh_list(properties, nil, data)
+
+	C.obs_properties_add_button(properties, refresh_readable_str, refresh_readable_str, C.obs_property_clicked_t(unsafe.Pointer(C.refresh_list)))
 	C.obs_properties_add_int_slider(properties, quality_str, quality_readable_str, 0, 100, 1)
 
-	prop = C.obs_properties_add_bool(properties, ignore_timestamps_str, ignore_timestamps_readable_str)
+	prop := C.obs_properties_add_bool(properties, ignore_timestamps_str, ignore_timestamps_readable_str)
 	C.obs_property_set_long_description(prop, ignore_timestamps_description_str)
 
 	return properties
