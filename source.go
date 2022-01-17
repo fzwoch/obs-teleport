@@ -101,7 +101,6 @@ func source_create(settings *C.obs_data_t, source *C.obs_source_t) C.uintptr_t {
 	C.video_format_get_parameters(C.VIDEO_CS_709, C.VIDEO_RANGE_PARTIAL, &h.frame.color_matrix[0], &h.frame.color_range_min[0], &h.frame.color_range_max[0])
 
 	h.Add(1)
-
 	go source_loop(h)
 
 	return C.uintptr_t(cgo.NewHandle(h))
@@ -177,7 +176,6 @@ func source_update(data C.uintptr_t, settings *C.obs_data_t) {
 	h.Wait()
 
 	h.Add(1)
-
 	go source_loop(h)
 }
 
@@ -188,7 +186,6 @@ func source_loop(h *teleportSource) {
 	defer close(discover)
 
 	h.Add(1)
-
 	go func() {
 		defer h.Done()
 
@@ -234,18 +231,14 @@ func source_loop(h *teleportSource) {
 		close(dial)
 
 		connMutex.Lock()
-
 		shutdown = true
-
 		if c != nil {
 			c.Close()
 		}
-
 		connMutex.Unlock()
 	}()
 
 	h.Add(1)
-
 	go func() {
 		defer h.Done()
 
@@ -331,7 +324,10 @@ func source_loop(h *teleportSource) {
 			}
 
 			for {
-				var header header
+				var (
+					header      header
+					wave_header wave_header
+				)
 
 				err = binary.Read(c, binary.LittleEndian, &header)
 				if err != nil {
@@ -340,6 +336,10 @@ func source_loop(h *teleportSource) {
 				switch header.Type {
 				case [4]byte{'J', 'P', 'E', 'G'}:
 				case [4]byte{'W', 'A', 'V', 'E'}:
+					err = binary.Read(c, binary.LittleEndian, &wave_header)
+					if err != nil {
+						break
+					}
 				case [4]byte{'A', 'N', 'J', 'A'}:
 					fallthrough
 				default:
@@ -374,7 +374,6 @@ func source_loop(h *teleportSource) {
 					h.imageLock.Unlock()
 
 					h.Add(1)
-
 					go func(info *imageInfo) {
 						defer h.Done()
 
@@ -421,15 +420,15 @@ func source_loop(h *teleportSource) {
 					}(info)
 				case [4]byte{'W', 'A', 'V', 'E'}:
 					h.audio.timestamp = C.uint64_t(header.Timestamp)
-					h.audio.samples_per_sec = 48000
-					h.audio.speakers = C.SPEAKERS_STEREO
-					h.audio.format = C.AUDIO_FORMAT_16BIT
-					h.audio.frames = C.uint(header.Size) / 4
+					h.audio.samples_per_sec = C.uint(wave_header.SampleRate)
+					h.audio.speakers = uint32(wave_header.Speakers)
+					h.audio.format = uint32(wave_header.Format)
+					h.audio.frames = C.uint(wave_header.Frames)
 					h.audio.data[0] = (*C.uint8_t)(unsafe.Pointer(&b[0]))
 
 					settings := C.obs_source_get_settings(h.source)
 					if ignore_timestamps {
-						h.audio.timestamp = C.uint64_t(float64(audioCount) * 1000000000.0 * (float64(h.audio.frames) / 48000.0))
+						h.audio.timestamp = C.uint64_t(float64(audioCount) * 1000000000.0 * (float64(h.audio.frames) / float64(wave_header.SampleRate)))
 						audioCount++
 					}
 					C.obs_data_release(settings)

@@ -40,92 +40,87 @@ import (
 	"github.com/schollz/peerdiscovery"
 )
 
-type jpegInfo struct {
-	b         bytes.Buffer
-	timestamp int64
-	done      bool
-}
-
-type teleportOutput struct {
+type teleportFilter struct {
 	sync.Mutex
 	sync.WaitGroup
-	conn          net.Conn
-	done          chan interface{}
-	output        *C.obs_output_t
-	imageLock     sync.Mutex
-	data          []*jpegInfo
-	quality       int
-	droppedFrames int
+	conn      net.Conn
+	done      chan interface{}
+	filter    *C.obs_source_t
+	imageLock sync.Mutex
+	data      []*jpegInfo
+	quality   int
 }
 
-//export output_get_name
-func output_get_name(type_data C.uintptr_t) *C.char {
+//export filter_get_name
+func filter_get_name(type_data C.uintptr_t) *C.char {
 	return frontend_str
 }
 
-//export output_create
-func output_create(settings *C.obs_data_t, output *C.obs_output_t) C.uintptr_t {
-	h := &teleportOutput{
+//export filter_create
+func filter_create(settings *C.obs_data_t, source *C.obs_source_t) C.uintptr_t {
+	h := &teleportFilter{
 		done:   make(chan interface{}),
-		output: output,
+		filter: source,
 	}
+
+	h.Add(1)
+	go filter_loop(h)
 
 	return C.uintptr_t(cgo.NewHandle(h))
 }
 
-//export output_destroy
-func output_destroy(data C.uintptr_t) {
-	h := cgo.Handle(data).Value().(*teleportOutput)
+//export filter_destroy
+func filter_destroy(data C.uintptr_t) {
+	h := cgo.Handle(data).Value().(*teleportFilter)
+
+	h.done <- nil
+	h.Wait()
 
 	close(h.done)
 
 	cgo.Handle(data).Delete()
 }
 
-//export output_start
-func output_start(data C.uintptr_t) C.bool {
-	h := cgo.Handle(data).Value().(*teleportOutput)
+//export filter_get_properties
+func filter_get_properties(data C.uintptr_t) *C.obs_properties_t {
+	properties := C.obs_properties_create()
 
-	if !C.obs_output_can_begin_data_capture(h.output, 0) {
-		return false
-	}
+	prop := C.obs_properties_add_text(properties, identifier_str, identifier_readable_str, C.OBS_TEXT_DEFAULT)
+	C.obs_property_set_long_description(prop, identifier_description_str)
 
-	h.Add(1)
-	go output_loop(h)
-
-	C.obs_output_begin_data_capture(h.output, 0)
-
-	return true
+	return properties
 }
 
-//export output_stop
-func output_stop(data C.uintptr_t, ts C.uint64_t) {
-	h := cgo.Handle(data).Value().(*teleportOutput)
+//export filter_get_defaults
+func filter_get_defaults(settings *C.obs_data_t) {
+	C.obs_data_set_default_string(settings, identifier_str, empty_str)
+}
 
-	C.obs_output_end_data_capture(h.output)
+//export filter_update
+func filter_update(data C.uintptr_t, settings *C.obs_data_t) {
+	h := cgo.Handle(data).Value().(*teleportFilter)
 
 	h.done <- nil
 	h.Wait()
+
+	h.Add(1)
+	go filter_loop(h)
 }
 
-//export output_raw_video
-func output_raw_video(data C.uintptr_t, frame *C.struct_video_data) {
-	h := cgo.Handle(data).Value().(*teleportOutput)
+//export filter_video
+func filter_video(data C.uintptr_t, frame *C.struct_obs_source_frame) *C.struct_obs_source_frame {
+	h := cgo.Handle(data).Value().(*teleportFilter)
 
 	h.Lock()
 	if h.conn == nil {
 		h.Unlock()
-
-		return
+		return frame
 	}
 	h.Unlock()
 
-	video := C.obs_output_video(h.output)
-	info := C.video_output_get_info(video)
-
-	img := createImage(C.obs_output_get_width(h.output), C.obs_output_get_height(h.output), info.format, frame.data)
+	img := createImage(frame.width, frame.height, frame.format, frame.data)
 	if img == nil {
-		return
+		return frame
 	}
 
 	j := &jpegInfo{
@@ -135,9 +130,8 @@ func output_raw_video(data C.uintptr_t, frame *C.struct_video_data) {
 
 	h.imageLock.Lock()
 	if len(h.data) > 20 {
-		h.droppedFrames++
 		h.imageLock.Unlock()
-		return
+		return frame
 	}
 
 	h.data = append(h.data, j)
@@ -183,29 +177,26 @@ func output_raw_video(data C.uintptr_t, frame *C.struct_video_data) {
 			h.data = h.data[1:]
 		}
 	}(j, img)
+
+	return frame
 }
 
-//export output_raw_audio
-func output_raw_audio(data C.uintptr_t, frames *C.struct_audio_data) {
-	h := cgo.Handle(data).Value().(*teleportOutput)
+//export filter_audio
+func filter_audio(data C.uintptr_t, frames *C.struct_obs_audio_data) *C.struct_obs_audio_data {
+	h := cgo.Handle(data).Value().(*teleportFilter)
 
 	h.Lock()
 	if h.conn == nil {
 		h.Unlock()
-		return
+
+		return frames
 	}
 	h.Unlock()
 
-	audio := C.obs_output_audio(h.output)
+	audio := C.obs_get_audio()
 	info := C.audio_output_get_info(audio)
 
-	f := &C.struct_obs_audio_data{
-		frames:    frames.frames,
-		timestamp: frames.timestamp,
-		data:      frames.data,
-	}
-
-	buffers := createAudioBuffer(info, f)
+	buffers := createAudioBuffer(info, frames)
 
 	h.Lock()
 	defer h.Unlock()
@@ -217,19 +208,11 @@ func output_raw_audio(data C.uintptr_t, frames *C.struct_audio_data) {
 			h.conn = nil
 		}
 	}
+
+	return frames
 }
 
-//export output_get_dropped_frames
-func output_get_dropped_frames(data C.uintptr_t) C.int {
-	h := cgo.Handle(data).Value().(*teleportOutput)
-
-	h.imageLock.Lock()
-	defer h.imageLock.Unlock()
-
-	return C.int(h.droppedFrames)
-}
-
-func output_loop(h *teleportOutput) {
+func filter_loop(h *teleportFilter) {
 	defer h.Done()
 
 	defer func() {
@@ -310,7 +293,7 @@ func output_loop(h *teleportOutput) {
 
 		p, _ := strconv.Atoi(port)
 
-		settings := C.obs_source_get_settings(dummy)
+		settings := C.obs_source_get_settings(h.filter)
 		name := C.GoString(C.obs_data_get_string(settings, identifier_str))
 		C.obs_data_release(settings)
 

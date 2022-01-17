@@ -27,11 +27,13 @@ package main
 //
 // typedef char* (*get_name_t)(uintptr_t type_data);
 // extern char* source_get_name(uintptr_t type_data);
+// extern char* filter_get_name(uintptr_t type_data);
 // extern char* output_get_name(uintptr_t type_data);
 // extern char* dummy_get_name(uintptr_t type_data);
 //
 // typedef uintptr_t (*source_create_t)(obs_data_t *settings, obs_source_t *source);
 // extern uintptr_t source_create(obs_data_t *settings, obs_source_t *source);
+// extern uintptr_t filter_create(obs_data_t *settings, obs_source_t *source);
 // extern uintptr_t dummy_create(obs_data_t *settings, obs_source_t *source);
 //
 // typedef uintptr_t (*output_create_t)(obs_data_t *settings, obs_output_t *output);
@@ -39,20 +41,30 @@ package main
 //
 // typedef void (*destroy_t)(uintptr_t data);
 // extern void source_destroy(uintptr_t data);
+// extern void filter_destroy(uintptr_t data);
 // extern void output_destroy(uintptr_t data);
 // extern void dummy_destroy(uintptr_t data);
 //
 // typedef obs_properties_t* (*get_properties_t)(uintptr_t data);
 // extern obs_properties_t* source_get_properties(uintptr_t data);
+// extern obs_properties_t* filter_get_properties(uintptr_t data);
 // extern obs_properties_t* dummy_get_properties(uintptr_t data);
 //
 // typedef void (*get_defaults_t)(obs_data_t *settings);
 // extern void source_get_defaults(obs_data_t *settings);
+// extern void filter_get_defaults(obs_data_t *settings);
 // extern void dummy_get_defaults(obs_data_t *settings);
 //
 // typedef void (*update_t)(uintptr_t data, obs_data_t *settings);
 // extern void (source_update)(uintptr_t data, obs_data_t *settings);
+// extern void (filter_update)(uintptr_t data, obs_data_t *settings);
 // extern void (dummy_update)(uintptr_t data, obs_data_t *settings);
+//
+// typedef struct obs_source_frame* (*filter_video_t)(uintptr_t data, struct obs_source_frame *frames);
+// extern struct obs_source_frame* filter_video(uintptr_t data, struct obs_source_frame *frames);
+//
+// typedef struct obs_audio_data* (*filter_audio_t)(uintptr_t data, struct obs_audio_data *frames);
+// extern struct obs_audio_data* filter_audio(uintptr_t data, struct obs_audio_data *frames);
 //
 // typedef void (*raw_video_t)(uintptr_t data, struct video_data *frame);
 // extern void output_raw_video(uintptr_t data, struct video_data *frame);
@@ -74,6 +86,10 @@ package main
 //
 import "C"
 import (
+	"bytes"
+	"encoding/binary"
+	"image"
+	"net"
 	"unsafe"
 )
 
@@ -95,11 +111,13 @@ func obs_module_ver() C.uint32_t {
 }
 
 var (
-	source_str   = C.CString("teleport-source")
-	output_str   = C.CString("teleport-output")
-	frontend_str = C.CString("Teleport")
-	dummy_str    = C.CString("teleport-dummy")
-	config_str   = C.CString("obs-teleport.json")
+	source_str       = C.CString("teleport-source")
+	output_str       = C.CString("teleport-output")
+	filter_video_str = C.CString("teleport-video-filter")
+	filter_audio_str = C.CString("teleport-audio-filter")
+	frontend_str     = C.CString("Teleport")
+	dummy_str        = C.CString("teleport-dummy")
+	config_str       = C.CString("obs-teleport.json")
 
 	output *C.obs_output_t
 	dummy  *C.obs_source_t
@@ -117,6 +135,33 @@ func obs_module_load() C.bool {
 		get_properties: C.get_properties_t(unsafe.Pointer(C.source_get_properties)),
 		get_defaults:   C.get_defaults_t(unsafe.Pointer(C.source_get_defaults)),
 		update:         C.update_t(unsafe.Pointer(C.source_update)),
+	}, C.sizeof_struct_obs_source_info)
+
+	C.obs_register_source_s(&C.struct_obs_source_info{
+		id:             filter_video_str,
+		_type:          C.OBS_SOURCE_TYPE_FILTER,
+		output_flags:   C.OBS_SOURCE_VIDEO | C.OBS_SOURCE_DO_NOT_DUPLICATE,
+		get_name:       C.get_name_t(unsafe.Pointer(C.filter_get_name)),
+		create:         C.source_create_t(unsafe.Pointer(C.filter_create)),
+		destroy:        C.destroy_t(unsafe.Pointer(C.filter_destroy)),
+		get_properties: C.get_properties_t(unsafe.Pointer(C.filter_get_properties)),
+		get_defaults:   C.get_defaults_t(unsafe.Pointer(C.filter_get_defaults)),
+		update:         C.update_t(unsafe.Pointer(C.filter_update)),
+		filter_video:   C.filter_video_t(unsafe.Pointer(C.filter_video)),
+		filter_audio:   C.filter_audio_t(unsafe.Pointer(C.filter_audio)),
+	}, C.sizeof_struct_obs_source_info)
+
+	C.obs_register_source_s(&C.struct_obs_source_info{
+		id:             filter_audio_str,
+		_type:          C.OBS_SOURCE_TYPE_FILTER,
+		output_flags:   C.OBS_SOURCE_AUDIO | C.OBS_SOURCE_DO_NOT_DUPLICATE,
+		get_name:       C.get_name_t(unsafe.Pointer(C.filter_get_name)),
+		create:         C.source_create_t(unsafe.Pointer(C.filter_create)),
+		destroy:        C.destroy_t(unsafe.Pointer(C.filter_destroy)),
+		get_properties: C.get_properties_t(unsafe.Pointer(C.filter_get_properties)),
+		get_defaults:   C.get_defaults_t(unsafe.Pointer(C.filter_get_defaults)),
+		update:         C.update_t(unsafe.Pointer(C.filter_update)),
+		filter_audio:   C.filter_audio_t(unsafe.Pointer(C.filter_audio)),
 	}, C.sizeof_struct_obs_source_info)
 
 	C.obs_register_output_s(&C.struct_obs_output_info{
@@ -196,6 +241,212 @@ type header struct {
 	Type      [4]byte
 	Timestamp int64
 	Size      int32
+}
+
+type wave_header struct {
+	Format     int32
+	SampleRate int32
+	Speakers   int32
+	Frames     int32
+}
+
+func createImage(w C.uint32_t, h C.uint32_t, format C.enum_video_format, data [C.MAX_AV_PLANES]*C.uint8_t) (img image.Image) {
+	width := int(w)
+	height := int(h)
+
+	paddedWidth := width + 16
+	paddedHeight := height + 16
+
+	switch format {
+	case C.VIDEO_FORMAT_NV12:
+		img = &image.YCbCr{
+			Rect: image.Rectangle{
+				Min: image.Point{0, 0},
+				Max: image.Point{
+					X: width,
+					Y: height,
+				},
+			},
+			YStride:        width,
+			CStride:        width / 2,
+			Y:              make([]byte, paddedWidth*paddedHeight),
+			Cb:             make([]byte, paddedWidth*paddedHeight/4),
+			Cr:             make([]byte, paddedWidth*paddedHeight/4),
+			SubsampleRatio: image.YCbCrSubsampleRatio420,
+		}
+
+		copy(img.(*image.YCbCr).Y, unsafe.Slice((*byte)(data[0]), width*height))
+
+		tmp := unsafe.Slice((*byte)(data[1]), width*height/2)
+
+		for i := 0; i < len(tmp)/2; i++ {
+			img.(*image.YCbCr).Cb[i] = tmp[2*i+0]
+			img.(*image.YCbCr).Cr[i] = tmp[2*i+1]
+		}
+	case C.VIDEO_FORMAT_I420:
+		img = &image.YCbCr{
+			Rect: image.Rectangle{
+				Min: image.Point{0, 0},
+				Max: image.Point{
+					X: width,
+					Y: height,
+				},
+			},
+			YStride:        width,
+			CStride:        width / 2,
+			Y:              make([]byte, paddedWidth*paddedHeight),
+			Cb:             make([]byte, paddedWidth*paddedHeight/4),
+			Cr:             make([]byte, paddedWidth*paddedHeight/4),
+			SubsampleRatio: image.YCbCrSubsampleRatio420,
+		}
+
+		copy(img.(*image.YCbCr).Y, unsafe.Slice((*byte)(data[0]), width*height))
+		copy(img.(*image.YCbCr).Cb, unsafe.Slice((*byte)(data[1]), width*height/4))
+		copy(img.(*image.YCbCr).Cr, unsafe.Slice((*byte)(data[2]), width*height/4))
+	case C.VIDEO_FORMAT_BGRX:
+		fallthrough
+	case C.VIDEO_FORMAT_BGRA:
+		img = &image.RGBA{
+			Rect: image.Rectangle{
+				Min: image.Point{0, 0},
+				Max: image.Point{
+					X: width,
+					Y: height,
+				},
+			},
+			Stride: width * 4,
+			Pix:    make([]byte, paddedWidth*paddedHeight*4),
+		}
+
+		tmp := unsafe.Slice((*byte)(data[0]), width*height*4)
+
+		for i := 0; i < len(tmp); i += 4 {
+			img.(*image.RGBA).Pix[i+0] = tmp[i+2]
+			img.(*image.RGBA).Pix[i+1] = tmp[i+1]
+			img.(*image.RGBA).Pix[i+2] = tmp[i+0]
+		}
+	case C.VIDEO_FORMAT_RGBA:
+		img = &image.RGBA{
+			Rect: image.Rectangle{
+				Min: image.Point{0, 0},
+				Max: image.Point{
+					X: width,
+					Y: height,
+				},
+			},
+			Stride: width * 4,
+			Pix:    make([]byte, paddedWidth*paddedHeight*4),
+		}
+
+		copy(img.(*image.RGBA).Pix, unsafe.Slice((*byte)(data[0]), width*height*4))
+	}
+
+	return
+}
+
+func createAudioBuffer(info *C.struct_audio_output_info, frames *C.struct_obs_audio_data) (buf net.Buffers) {
+
+	var (
+		bytesPerSample int
+		format         C.enum_video_format
+	)
+
+	switch info.format {
+	case C.AUDIO_FORMAT_U8BIT:
+		fallthrough
+	case C.AUDIO_FORMAT_U8BIT_PLANAR:
+		bytesPerSample = 1
+		format = C.AUDIO_FORMAT_U8BIT
+	case C.AUDIO_FORMAT_16BIT:
+		fallthrough
+	case C.AUDIO_FORMAT_16BIT_PLANAR:
+		bytesPerSample = 2
+		format = C.AUDIO_FORMAT_16BIT
+	case C.AUDIO_FORMAT_32BIT:
+		fallthrough
+	case C.AUDIO_FORMAT_32BIT_PLANAR:
+		bytesPerSample = 4
+		format = C.AUDIO_FORMAT_32BIT
+	case C.AUDIO_FORMAT_FLOAT:
+		fallthrough
+	case C.AUDIO_FORMAT_FLOAT_PLANAR:
+		bytesPerSample = 4
+		format = C.AUDIO_FORMAT_FLOAT
+	}
+
+	wave := make([]byte, bytesPerSample*int(info.speakers)*int(frames.frames))
+
+	switch info.format {
+	case C.AUDIO_FORMAT_32BIT_PLANAR:
+		fallthrough
+	case C.AUDIO_FORMAT_FLOAT_PLANAR:
+		var tmp [C.MAX_AUDIO_CHANNELS][]byte
+
+		for i := 0; i < int(info.speakers); i++ {
+			tmp[i] = unsafe.Slice((*byte)(frames.data[i]), int(frames.frames)*bytesPerSample)
+		}
+
+		for i := 0; i < int(frames.frames); i++ {
+			for j := 0; j < int(info.speakers); j++ {
+				wave[i*int(info.speakers)*4+j*4+0] = tmp[j][i*4+0]
+				wave[i*int(info.speakers)*4+j*4+1] = tmp[j][i*4+1]
+				wave[i*int(info.speakers)*4+j*4+2] = tmp[j][i*4+2]
+				wave[i*int(info.speakers)*4+j*4+3] = tmp[j][i*4+3]
+			}
+		}
+	case C.AUDIO_FORMAT_16BIT_PLANAR:
+		var tmp [C.MAX_AUDIO_CHANNELS][]byte
+
+		for i := 0; i < int(info.speakers); i++ {
+			tmp[i] = unsafe.Slice((*byte)(frames.data[i]), int(frames.frames)*bytesPerSample)
+		}
+
+		for i := 0; i < int(frames.frames); i++ {
+			for j := 0; j < int(info.speakers); j++ {
+				wave[i*int(info.speakers)*2+j*2+0] = tmp[j][i*2+0]
+				wave[i*int(info.speakers)*2+j*2+1] = tmp[j][i*2+1]
+			}
+		}
+	case C.AUDIO_FORMAT_U8BIT_PLANAR:
+		var tmp [C.MAX_AUDIO_CHANNELS][]byte
+
+		for i := 0; i < int(info.speakers); i++ {
+			tmp[i] = unsafe.Slice((*byte)(frames.data[i]), int(frames.frames)*bytesPerSample)
+		}
+
+		for i := 0; i < int(frames.frames); i++ {
+			for j := 0; j < int(info.speakers); j++ {
+				wave[i*int(info.speakers)+j] = tmp[j][i]
+			}
+		}
+	default:
+		copy(wave, unsafe.Slice((*byte)(frames.data[0]), len(wave)))
+	}
+
+	h := bytes.Buffer{}
+
+	binary.Write(&h, binary.LittleEndian, &header{
+		Type:      [4]byte{'W', 'A', 'V', 'E'},
+		Timestamp: int64(frames.timestamp),
+		Size:      int32(len(wave)),
+	})
+
+	wave_h := bytes.Buffer{}
+
+	binary.Write(&wave_h, binary.LittleEndian, &wave_header{
+		Format:     int32(format),
+		SampleRate: int32(info.samples_per_sec),
+		Speakers:   int32(info.speakers),
+		Frames:     int32(frames.frames),
+	})
+
+	buf = net.Buffers{
+		h.Bytes(),
+		wave_h.Bytes(),
+		wave,
+	}
+
+	return
 }
 
 func main() {}
