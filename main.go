@@ -140,7 +140,7 @@ func obs_module_load() C.bool {
 	C.obs_register_source_s(&C.struct_obs_source_info{
 		id:             filter_video_str,
 		_type:          C.OBS_SOURCE_TYPE_FILTER,
-		output_flags:   C.OBS_SOURCE_VIDEO | C.OBS_SOURCE_DO_NOT_DUPLICATE,
+		output_flags:   C.OBS_SOURCE_ASYNC_VIDEO | C.OBS_SOURCE_AUDIO | C.OBS_SOURCE_DO_NOT_DUPLICATE,
 		get_name:       C.get_name_t(unsafe.Pointer(C.filter_get_name)),
 		create:         C.source_create_t(unsafe.Pointer(C.filter_create)),
 		destroy:        C.destroy_t(unsafe.Pointer(C.filter_destroy)),
