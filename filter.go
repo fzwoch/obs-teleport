@@ -56,6 +56,11 @@ func filter_get_name(type_data C.uintptr_t) *C.char {
 	return frontend_str
 }
 
+//export filter_audio_get_name
+func filter_audio_get_name(type_data C.uintptr_t) *C.char {
+	return frontend_audio_str
+}
+
 //export filter_create
 func filter_create(settings *C.obs_data_t, source *C.obs_source_t) C.uintptr_t {
 	h := &teleportFilter{

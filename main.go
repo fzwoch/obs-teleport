@@ -28,6 +28,7 @@ package main
 // typedef char* (*get_name_t)(uintptr_t type_data);
 // extern char* source_get_name(uintptr_t type_data);
 // extern char* filter_get_name(uintptr_t type_data);
+// extern char* filter_audio_get_name(uintptr_t type_data);
 // extern char* output_get_name(uintptr_t type_data);
 // extern char* dummy_get_name(uintptr_t type_data);
 //
@@ -111,13 +112,14 @@ func obs_module_ver() C.uint32_t {
 }
 
 var (
-	source_str       = C.CString("teleport-source")
-	output_str       = C.CString("teleport-output")
-	filter_video_str = C.CString("teleport-video-filter")
-	filter_audio_str = C.CString("teleport-audio-filter")
-	frontend_str     = C.CString("Teleport")
-	dummy_str        = C.CString("teleport-dummy")
-	config_str       = C.CString("obs-teleport.json")
+	source_str         = C.CString("teleport-source")
+	output_str         = C.CString("teleport-output")
+	filter_video_str   = C.CString("teleport-video-filter")
+	filter_audio_str   = C.CString("teleport-audio-filter")
+	frontend_str       = C.CString("Teleport")
+	frontend_audio_str = C.CString("Teleport (Audio)")
+	dummy_str          = C.CString("teleport-dummy")
+	config_str         = C.CString("obs-teleport.json")
 
 	output *C.obs_output_t
 	dummy  *C.obs_source_t
@@ -155,7 +157,7 @@ func obs_module_load() C.bool {
 		id:             filter_audio_str,
 		_type:          C.OBS_SOURCE_TYPE_FILTER,
 		output_flags:   C.OBS_SOURCE_AUDIO | C.OBS_SOURCE_DO_NOT_DUPLICATE,
-		get_name:       C.get_name_t(unsafe.Pointer(C.filter_get_name)),
+		get_name:       C.get_name_t(unsafe.Pointer(C.filter_audio_get_name)),
 		create:         C.source_create_t(unsafe.Pointer(C.filter_create)),
 		destroy:        C.destroy_t(unsafe.Pointer(C.filter_destroy)),
 		get_properties: C.get_properties_t(unsafe.Pointer(C.filter_get_properties)),
