@@ -4,7 +4,7 @@ An [OBS Studio] plugin for an open [NDI]-like replacement. Pretty simple, straig
 
 Just as an alternative option for stream setups with multiple machines wanting to transmit some OBS Studio scenes to the main streaming machine in LAN.
 
-![](obs-teleport.png)
+![](img/obs-teleport.png)
 
 [OBS Studio]: https://obsproject.com
 [NDI]: https://ndi.tv/
@@ -27,30 +27,30 @@ Binaries can be grabbed from the [Releases] section.
 
 Go to `Tools → Teleport`.
 
-![](teleport-tools.png)
+![](img/teleport-tools.png)
 
 Check `Teleport Enabled`.
 
-![](teleport-output.png)
+![](img/teleport-output.png)
 
 
 ## Setup Sender as Filter
 
 Click `<Source> Right click → Filter`.
 
-![](teleport-properties.png)
+![](img/teleport-properties.png)
 
 Click `+ → Teleport`.
 
-![](teleport-filter.png)
+![](img/teleport-filter.png)
 
 
 ## Setup Receiver
 
 In your Scene do `Sources → Add → Teleport`.
 
-![](teleport-add.png)
+![](img/teleport-add.png)
 
 Select a detected stream from the `Teleport` drop down.
 
-![](teleport-source.png)
+![](img/teleport-source.png)
