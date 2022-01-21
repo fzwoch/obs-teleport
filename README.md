@@ -34,6 +34,17 @@ Check `Teleport Enabled`.
 ![](teleport-output.png)
 
 
+## Setup Sender as Filter
+
+Click `<Source> Right click → Filter`.
+
+![](teleport-properties.png)
+
+Click `+ → Teleport`.
+
+![](teleport-filter.png)
+
+
 ## Setup Receiver
 
 In your Scene do `Sources → Add → Teleport`.
