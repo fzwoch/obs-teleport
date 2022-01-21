@@ -347,7 +347,6 @@ func createImage(w C.uint32_t, h C.uint32_t, format C.enum_video_format, data [C
 }
 
 func createAudioBuffer(info *C.struct_audio_output_info, frames *C.struct_obs_audio_data) (buf net.Buffers) {
-
 	var (
 		bytesPerSample int
 		format         C.enum_video_format

@@ -36,7 +36,7 @@ Check `Teleport Enabled`.
 
 ## Setup Sender as Filter
 
-Click `<Source> Right click → Filter`.
+Click `<Source> Right click → Filters`.
 
 ![](img/teleport-properties.png)
 
