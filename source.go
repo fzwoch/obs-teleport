@@ -56,7 +56,7 @@ type peer struct {
 type imageInfo struct {
 	timestamp int64
 	b         []byte
-	image     *image.YCbCr
+	image     image.Image
 	done      bool
 }
 
@@ -202,7 +202,7 @@ func source_loop(h *teleportSource) {
 
 				err := json.Unmarshal(d.Payload, &j)
 				if err != nil {
-					panic(err)
+					return
 				}
 
 				h.Lock()
@@ -343,7 +343,7 @@ func source_loop(h *teleportSource) {
 				case [4]byte{'A', 'N', 'J', 'A'}:
 					fallthrough
 				default:
-					panic("UNKNOWN HEADER TYPE")
+					break
 				}
 
 				b := make([]byte, header.Size)
@@ -379,28 +379,40 @@ func source_loop(h *teleportSource) {
 
 						reader := bytes.NewReader(info.b)
 
-						img, err := jpeg.Decode(reader, &jpeg.DecoderOptions{})
-						if err != nil {
-							panic(err)
-						}
-						info.image = img.(*image.YCbCr)
+						img, _ := jpeg.Decode(reader, &jpeg.DecoderOptions{})
 
 						h.imageLock.Lock()
 						defer h.imageLock.Unlock()
 
+						info.image = img
 						info.done = true
 
 						for len(h.images) > 0 && h.images[0].done {
-							h.frame.width = C.uint(h.images[0].image.Bounds().Dx())
-							h.frame.height = C.uint(h.images[0].image.Bounds().Dy())
-							h.frame.format = C.VIDEO_FORMAT_I420
-							h.frame.timestamp = C.uint64_t(h.images[0].timestamp)
-							h.frame.linesize[0] = C.uint(h.images[0].image.YStride)
-							h.frame.linesize[1] = C.uint(h.images[0].image.CStride)
-							h.frame.linesize[2] = C.uint(h.images[0].image.CStride)
-							h.frame.data[0] = (*C.uint8_t)(unsafe.Pointer(&h.images[0].image.Y[0]))
-							h.frame.data[1] = (*C.uint8_t)(unsafe.Pointer(&h.images[0].image.Cb[0]))
-							h.frame.data[2] = (*C.uint8_t)(unsafe.Pointer(&h.images[0].image.Cr[0]))
+							i := h.images[0]
+
+							if i == nil {
+								h.images = h.images[1:]
+								continue
+							}
+
+							switch i.image.(type) {
+							case *image.YCbCr:
+								img := i.image.(*image.YCbCr)
+
+								h.frame.format = C.VIDEO_FORMAT_I420
+								h.frame.linesize[0] = C.uint(img.YStride)
+								h.frame.linesize[1] = C.uint(img.CStride)
+								h.frame.linesize[2] = C.uint(img.CStride)
+								h.frame.data[0] = (*C.uint8_t)(unsafe.Pointer(&img.Y[0]))
+								h.frame.data[1] = (*C.uint8_t)(unsafe.Pointer(&img.Cb[0]))
+								h.frame.data[2] = (*C.uint8_t)(unsafe.Pointer(&img.Cr[0]))
+							default:
+								panic("FIXME")
+							}
+
+							h.frame.width = C.uint(i.image.Bounds().Dx())
+							h.frame.height = C.uint(i.image.Bounds().Dy())
+							h.frame.timestamp = C.uint64_t(i.timestamp)
 
 							settings := C.obs_source_get_settings(h.source)
 							if ignore_timestamps {
