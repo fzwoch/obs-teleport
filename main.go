@@ -256,7 +256,6 @@ func createImage(w C.uint32_t, h C.uint32_t, format C.enum_video_format, data [C
 	width := int(w)
 	height := int(h)
 
-	paddedWidth := width + 16
 	paddedHeight := height + 16
 
 	switch format {
@@ -271,9 +270,9 @@ func createImage(w C.uint32_t, h C.uint32_t, format C.enum_video_format, data [C
 			},
 			YStride:        width,
 			CStride:        width / 2,
-			Y:              make([]byte, paddedWidth*paddedHeight),
-			Cb:             make([]byte, paddedWidth*paddedHeight/4),
-			Cr:             make([]byte, paddedWidth*paddedHeight/4),
+			Y:              make([]byte, width*paddedHeight),
+			Cb:             make([]byte, width*paddedHeight/4),
+			Cr:             make([]byte, width*paddedHeight/4),
 			SubsampleRatio: image.YCbCrSubsampleRatio420,
 		}
 
@@ -296,9 +295,9 @@ func createImage(w C.uint32_t, h C.uint32_t, format C.enum_video_format, data [C
 			},
 			YStride:        width,
 			CStride:        width / 2,
-			Y:              make([]byte, paddedWidth*paddedHeight),
-			Cb:             make([]byte, paddedWidth*paddedHeight/4),
-			Cr:             make([]byte, paddedWidth*paddedHeight/4),
+			Y:              make([]byte, width*paddedHeight),
+			Cb:             make([]byte, width*paddedHeight/4),
+			Cr:             make([]byte, width*paddedHeight/4),
 			SubsampleRatio: image.YCbCrSubsampleRatio420,
 		}
 
@@ -317,7 +316,7 @@ func createImage(w C.uint32_t, h C.uint32_t, format C.enum_video_format, data [C
 				},
 			},
 			Stride: width * 4,
-			Pix:    make([]byte, paddedWidth*paddedHeight*4),
+			Pix:    make([]byte, width*paddedHeight*4),
 		}
 
 		tmp := unsafe.Slice((*byte)(data[0]), width*height*4)
@@ -337,7 +336,7 @@ func createImage(w C.uint32_t, h C.uint32_t, format C.enum_video_format, data [C
 				},
 			},
 			Stride: width * 4,
-			Pix:    make([]byte, paddedWidth*paddedHeight*4),
+			Pix:    make([]byte, width*paddedHeight*4),
 		}
 
 		copy(img.(*image.RGBA).Pix, unsafe.Slice((*byte)(data[0]), width*height*4))
