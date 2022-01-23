@@ -90,13 +90,14 @@ func dummy_get_defaults(settings *C.obs_data_t) {
 
 //export dummy_update
 func dummy_update(data C.uintptr_t, settings *C.obs_data_t) {
-	if C.obs_data_get_bool(settings, teleport_enabled_str) {
-		if C.obs_output_can_begin_data_capture(output, 0) {
-			C.obs_output_release(output)
-			output = C.obs_output_create(output_str, frontend_str, nil, nil)
-		}
-		C.obs_output_start(output)
-	} else {
+	if !C.obs_output_can_begin_data_capture(output, 0) {
 		C.obs_output_stop(output)
+	}
+
+	C.obs_output_release(output)
+	output = C.obs_output_create(output_str, frontend_str, nil, nil)
+
+	if C.obs_data_get_bool(settings, teleport_enabled_str) {
+		C.obs_output_start(output)
 	}
 }
