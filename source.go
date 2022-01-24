@@ -270,7 +270,7 @@ func source_loop(h *teleportSource) {
 			h.Unlock()
 
 			if !ok {
-				time.Sleep(time.Second)
+				time.Sleep(100 * time.Millisecond)
 				continue
 			}
 
@@ -289,12 +289,12 @@ func source_loop(h *teleportSource) {
 			if c != nil {
 				c.Close()
 			}
-			c, err = net.DialTimeout("tcp", service.address+":"+strconv.Itoa(service.port), time.Second)
+			c, err = net.DialTimeout("tcp", service.address+":"+strconv.Itoa(service.port), 100*time.Millisecond)
 			connMutex.Unlock()
 
 			if err != nil {
 				if !errors.Is(err, os.ErrDeadlineExceeded) {
-					time.Sleep(time.Second)
+					time.Sleep(100 * time.Millisecond)
 				}
 				continue
 			}
