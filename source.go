@@ -407,7 +407,8 @@ func source_loop(h *teleportSource) {
 								h.frame.data[1] = (*C.uint8_t)(unsafe.Pointer(&img.Cb[0]))
 								h.frame.data[2] = (*C.uint8_t)(unsafe.Pointer(&img.Cr[0]))
 							default:
-								panic("FIXME")
+								h.images = h.images[1:]
+								continue
 							}
 
 							h.frame.width = C.uint(i.image.Bounds().Dx())
