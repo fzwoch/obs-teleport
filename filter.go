@@ -261,7 +261,10 @@ func filter_loop(h *teleportFilter) {
 				continue
 			}
 			if header.Magic != [4]byte{'O', 'P', 'T', 'S'} {
-				panic("")
+				h.conn.Close()
+				h.conn = nil
+				h.Unlock()
+				continue
 			}
 
 			b := make([]byte, header.Size)
@@ -276,7 +279,10 @@ func filter_loop(h *teleportFilter) {
 
 			err = json.Unmarshal(b, &options)
 			if err != nil {
-				panic(err)
+				h.conn.Close()
+				h.conn = nil
+				h.Unlock()
+				continue
 			}
 
 			h.quality = options.Quality

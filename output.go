@@ -273,7 +273,10 @@ func output_loop(h *teleportOutput) {
 				continue
 			}
 			if header.Magic != [4]byte{'O', 'P', 'T', 'S'} {
-				panic("")
+				h.conn.Close()
+				h.conn = nil
+				h.Unlock()
+				continue
 			}
 
 			b := make([]byte, header.Size)
@@ -288,7 +291,10 @@ func output_loop(h *teleportOutput) {
 
 			err = json.Unmarshal(b, &options)
 			if err != nil {
-				panic(err)
+				h.conn.Close()
+				h.conn = nil
+				h.Unlock()
+				continue
 			}
 
 			h.quality = options.Quality
