@@ -165,14 +165,9 @@ func output_raw_video(data C.uintptr_t, frame *C.struct_video_data) {
 				Size:      int32(h.data[0].b.Len()),
 			})
 
-			buffers := net.Buffers{
-				b.Bytes(),
-				h.data[0].b.Bytes(),
-			}
-
 			h.Lock()
 			if h.conn != nil {
-				_, err := buffers.WriteTo(h.conn)
+				_, err := h.conn.Write(append(b.Bytes(), h.data[0].b.Bytes()...))
 				if err != nil {
 					h.conn.Close()
 					h.conn = nil
@@ -205,13 +200,13 @@ func output_raw_audio(data C.uintptr_t, frames *C.struct_audio_data) {
 		data:      frames.data,
 	}
 
-	buffers := createAudioBuffer(info, f)
+	buffer := createAudioBuffer(info, f)
 
 	h.Lock()
 	defer h.Unlock()
 
 	if h.conn != nil {
-		_, err := buffers.WriteTo(h.conn)
+		_, err := h.conn.Write(buffer)
 		if err != nil {
 			h.conn.Close()
 			h.conn = nil

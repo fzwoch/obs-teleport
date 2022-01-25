@@ -313,12 +313,7 @@ func source_loop(h *teleportSource) {
 				Size:  int32(len(j)),
 			})
 
-			buffers := net.Buffers{
-				b.Bytes(),
-				j,
-			}
-
-			_, err = buffers.WriteTo(c)
+			_, err = c.Write(append(b.Bytes(), j...))
 			if err != nil {
 				continue
 			}

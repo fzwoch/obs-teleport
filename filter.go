@@ -164,14 +164,9 @@ func filter_video(data C.uintptr_t, frame *C.struct_obs_source_frame) *C.struct_
 				Size:      int32(h.data[0].b.Len()),
 			})
 
-			buffers := net.Buffers{
-				b.Bytes(),
-				h.data[0].b.Bytes(),
-			}
-
 			h.Lock()
 			if h.conn != nil {
-				_, err := buffers.WriteTo(h.conn)
+				_, err := h.conn.Write(append(b.Bytes(), h.data[0].b.Bytes()...))
 				if err != nil {
 					h.conn.Close()
 					h.conn = nil
@@ -201,13 +196,13 @@ func filter_audio(data C.uintptr_t, frames *C.struct_obs_audio_data) *C.struct_o
 	audio := C.obs_get_audio()
 	info := C.audio_output_get_info(audio)
 
-	buffers := createAudioBuffer(info, frames)
+	buffer := createAudioBuffer(info, frames)
 
 	h.Lock()
 	defer h.Unlock()
 
 	if h.conn != nil {
-		_, err := buffers.WriteTo(h.conn)
+		_, err := h.conn.Write(buffer)
 		if err != nil {
 			h.conn.Close()
 			h.conn = nil
