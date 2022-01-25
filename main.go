@@ -373,7 +373,30 @@ func createAudioBuffer(info *C.struct_audio_output_info, frames *C.struct_obs_au
 		format = C.AUDIO_FORMAT_FLOAT
 	}
 
-	wave := make([]byte, bytesPerSample*int(info.speakers)*int(frames.frames))
+	size := bytesPerSample * int(info.speakers) * int(frames.frames)
+
+	h := bytes.Buffer{}
+
+	binary.Write(&h, binary.LittleEndian, &header{
+		Type:      [4]byte{'W', 'A', 'V', 'E'},
+		Timestamp: int64(frames.timestamp),
+		Size:      int32(size),
+	})
+
+	wave_h := bytes.Buffer{}
+
+	binary.Write(&wave_h, binary.LittleEndian, &wave_header{
+		Format:     int32(format),
+		SampleRate: int32(info.samples_per_sec),
+		Speakers:   int32(info.speakers),
+		Frames:     int32(frames.frames),
+	})
+
+	buf = make([]byte, h.Len()+wave_h.Len()+size)
+
+	copy(buf, append(h.Bytes(), wave_h.Bytes()...))
+
+	wave := buf[len(buf)-size:]
 
 	switch info.format {
 	case C.AUDIO_FORMAT_32BIT_PLANAR:
@@ -421,26 +444,6 @@ func createAudioBuffer(info *C.struct_audio_output_info, frames *C.struct_obs_au
 	default:
 		copy(wave, unsafe.Slice((*byte)(frames.data[0]), len(wave)))
 	}
-
-	h := bytes.Buffer{}
-
-	binary.Write(&h, binary.LittleEndian, &header{
-		Type:      [4]byte{'W', 'A', 'V', 'E'},
-		Timestamp: int64(frames.timestamp),
-		Size:      int32(len(wave)),
-	})
-
-	wave_h := bytes.Buffer{}
-
-	binary.Write(&wave_h, binary.LittleEndian, &wave_header{
-		Format:     int32(format),
-		SampleRate: int32(info.samples_per_sec),
-		Speakers:   int32(info.speakers),
-		Frames:     int32(frames.frames),
-	})
-
-	buf = append(h.Bytes(), wave_h.Bytes()...)
-	buf = append(buf, wave...)
 
 	return
 }
