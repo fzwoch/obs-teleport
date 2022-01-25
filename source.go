@@ -410,12 +410,10 @@ func source_loop(h *teleportSource) {
 							h.frame.height = C.uint(i.image.Bounds().Dy())
 							h.frame.timestamp = C.uint64_t(i.timestamp)
 
-							settings := C.obs_source_get_settings(h.source)
 							if ignore_timestamps {
 								h.frame.timestamp = C.uint64_t(videoCount)
 								videoCount++
 							}
-							C.obs_data_release(settings)
 
 							C.obs_source_output_video(h.source, h.frame)
 
@@ -434,12 +432,10 @@ func source_loop(h *teleportSource) {
 					h.audio.frames = C.uint(wave_header.Frames)
 					h.audio.data[0] = (*C.uint8_t)(unsafe.Pointer(&b[0]))
 
-					settings := C.obs_source_get_settings(h.source)
 					if ignore_timestamps {
 						h.audio.timestamp = C.uint64_t(float64(audioCount) * 1000000000.0 * (float64(h.audio.frames) / float64(wave_header.SampleRate)))
 						audioCount++
 					}
-					C.obs_data_release(settings)
 
 					C.obs_source_output_audio(h.source, h.audio)
 
