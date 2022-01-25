@@ -80,6 +80,7 @@ var (
 	ignore_timestamps_str             = C.CString("ignore_timestamps")
 	ignore_timestamps_readable_str    = C.CString("Ignore Timestamps")
 	ignore_timestamps_description_str = C.CString("May help against long time synchronization clock drifts, but may also increase jitter and/or sync issues.")
+	no_services_str                   = C.CString("Press 'Refresh List' to search for streams")
 	disabled_str                      = C.CString("- Disabled -")
 )
 
@@ -128,7 +129,13 @@ func refresh_list(props *C.obs_properties_t, property *C.obs_property_t, data C.
 	prop := C.obs_properties_get(props, teleport_list_str)
 	C.obs_property_list_clear(prop)
 
-	C.obs_property_list_add_string(prop, disabled_str, empty_str)
+	if len(h.services) == 0 {
+		C.obs_property_set_enabled(prop, false)
+		C.obs_property_list_add_string(prop, no_services_str, empty_str)
+	} else {
+		C.obs_property_set_enabled(prop, true)
+		C.obs_property_list_add_string(prop, disabled_str, empty_str)
+	}
 
 	h.Lock()
 	for key, service := range h.services {
