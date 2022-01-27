@@ -35,6 +35,7 @@ var (
 	identifier_str                = C.CString("identifier")
 	identifier_readable_str       = C.CString("Identifier")
 	identifier_description_str    = C.CString("Name of the stream. Uses hostname if blank.")
+	apply_str                     = C.CString("Apply")
 	empty_str                     = C.CString("")
 )
 
@@ -73,6 +74,8 @@ func dummy_destroy(data C.uintptr_t) {
 //export dummy_get_properties
 func dummy_get_properties(data C.uintptr_t) *C.obs_properties_t {
 	properties := C.obs_properties_create()
+
+	C.obs_properties_set_flags(properties, C.OBS_PROPERTIES_DEFER_UPDATE)
 
 	C.obs_properties_add_bool(properties, teleport_enabled_str, teleport_enabled_readable_str)
 

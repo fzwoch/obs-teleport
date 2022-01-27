@@ -23,6 +23,8 @@ package main
 //
 // #include <obs-module.h>
 //
+// bool filter_apply_clicked(obs_properties_t *props, obs_property_t *property, uintptr_t data);
+//
 import "C"
 import (
 	"bytes"
@@ -35,6 +37,7 @@ import (
 	"runtime/cgo"
 	"strconv"
 	"sync"
+	"unsafe"
 
 	"github.com/pixiv/go-libjpeg/jpeg"
 	"github.com/schollz/peerdiscovery"
@@ -86,12 +89,23 @@ func filter_destroy(data C.uintptr_t) {
 	cgo.Handle(data).Delete()
 }
 
+//export filter_apply_clicked
+func filter_apply_clicked(properties *C.obs_properties_t, prop *C.obs_property_t, data C.uintptr_t) C.bool {
+	filter_update(data, nil)
+
+	return false
+}
+
 //export filter_get_properties
 func filter_get_properties(data C.uintptr_t) *C.obs_properties_t {
 	properties := C.obs_properties_create()
 
+	C.obs_properties_set_flags(properties, C.OBS_PROPERTIES_DEFER_UPDATE)
+
 	prop := C.obs_properties_add_text(properties, identifier_str, identifier_readable_str, C.OBS_TEXT_DEFAULT)
 	C.obs_property_set_long_description(prop, identifier_description_str)
+
+	C.obs_properties_add_button(properties, apply_str, apply_str, C.obs_property_clicked_t(unsafe.Pointer(C.filter_apply_clicked)))
 
 	return properties
 }
