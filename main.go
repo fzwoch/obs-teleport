@@ -240,7 +240,7 @@ type options struct {
 
 type header struct {
 	Type      [4]byte
-	Timestamp int64
+	Timestamp uint64
 	Size      int32
 }
 
@@ -379,7 +379,7 @@ func createAudioBuffer(info *C.struct_audio_output_info, frames *C.struct_obs_au
 
 	binary.Write(&h, binary.LittleEndian, &header{
 		Type:      [4]byte{'W', 'A', 'V', 'E'},
-		Timestamp: int64(frames.timestamp),
+		Timestamp: uint64(frames.timestamp),
 		Size:      int32(size),
 	})
 

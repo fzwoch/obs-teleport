@@ -42,7 +42,7 @@ import (
 
 type jpegInfo struct {
 	b         bytes.Buffer
-	timestamp int64
+	timestamp uint64
 	done      bool
 }
 
@@ -136,7 +136,7 @@ func output_raw_video(data C.uintptr_t, frame *C.struct_video_data) {
 
 	j := &jpegInfo{
 		b:         bytes.Buffer{},
-		timestamp: int64(frame.timestamp),
+		timestamp: uint64(frame.timestamp),
 	}
 
 	h.imageLock.Lock()

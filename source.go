@@ -54,7 +54,7 @@ type peer struct {
 }
 
 type imageInfo struct {
-	timestamp int64
+	timestamp uint64
 	b         []byte
 	image     image.Image
 	done      bool

@@ -144,7 +144,7 @@ func filter_video(data C.uintptr_t, frame *C.struct_obs_source_frame) *C.struct_
 
 	j := &jpegInfo{
 		b:         bytes.Buffer{},
-		timestamp: int64(frame.timestamp),
+		timestamp: uint64(frame.timestamp),
 	}
 
 	h.imageLock.Lock()
