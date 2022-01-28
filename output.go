@@ -66,7 +66,6 @@ func output_get_name(type_data C.uintptr_t) *C.char {
 //export output_create
 func output_create(settings *C.obs_data_t, output *C.obs_output_t) C.uintptr_t {
 	h := &teleportOutput{
-		done:   make(chan interface{}),
 		output: output,
 	}
 
@@ -75,10 +74,6 @@ func output_create(settings *C.obs_data_t, output *C.obs_output_t) C.uintptr_t {
 
 //export output_destroy
 func output_destroy(data C.uintptr_t) {
-	h := cgo.Handle(data).Value().(*teleportOutput)
-
-	close(h.done)
-
 	cgo.Handle(data).Delete()
 }
 
@@ -89,6 +84,9 @@ func output_start(data C.uintptr_t) C.bool {
 	if !C.obs_output_can_begin_data_capture(h.output, 0) {
 		return false
 	}
+
+	h.done = make(chan interface{})
+	h.droppedFrames = 0
 
 	h.Add(1)
 	go output_loop(h)
@@ -102,10 +100,18 @@ func output_start(data C.uintptr_t) C.bool {
 func output_stop(data C.uintptr_t, ts C.uint64_t) {
 	h := cgo.Handle(data).Value().(*teleportOutput)
 
+	// hack: prevent deadlock, why called multiple times?
+	if h.done == nil {
+		return
+	}
+
 	C.obs_output_end_data_capture(h.output)
 
 	h.done <- nil
 	h.Wait()
+
+	close(h.done)
+	h.done = nil
 }
 
 //export output_raw_video
