@@ -73,15 +73,12 @@ type teleportSource struct {
 }
 
 var (
-	teleport_list_str                 = C.CString("teleport_list")
-	refresh_readable_str              = C.CString("Refresh List")
-	quality_str                       = C.CString("quality")
-	quality_readable_str              = C.CString("Quality")
-	ignore_timestamps_str             = C.CString("ignore_timestamps")
-	ignore_timestamps_readable_str    = C.CString("Ignore Timestamps")
-	ignore_timestamps_description_str = C.CString("May help against long time synchronization clock drifts, but may also increase jitter and/or sync issues.")
-	no_services_str                   = C.CString("Press 'Refresh List' to search for streams")
-	disabled_str                      = C.CString("- Disabled -")
+	teleport_list_str    = C.CString("teleport_list")
+	refresh_readable_str = C.CString("Refresh List")
+	quality_str          = C.CString("quality")
+	quality_readable_str = C.CString("Quality")
+	no_services_str      = C.CString("Press 'Refresh List' to search for streams")
+	disabled_str         = C.CString("- Disabled -")
 )
 
 //export source_get_name
@@ -162,9 +159,6 @@ func source_get_properties(data C.uintptr_t) *C.obs_properties_t {
 	C.obs_properties_add_button(properties, refresh_readable_str, refresh_readable_str, C.obs_property_clicked_t(unsafe.Pointer(C.refresh_list)))
 	C.obs_properties_add_int_slider(properties, quality_str, quality_readable_str, 0, 100, 1)
 
-	prop := C.obs_properties_add_bool(properties, ignore_timestamps_str, ignore_timestamps_readable_str)
-	C.obs_property_set_long_description(prop, ignore_timestamps_description_str)
-
 	return properties
 }
 
@@ -172,7 +166,6 @@ func source_get_properties(data C.uintptr_t) *C.obs_properties_t {
 func source_get_defaults(settings *C.obs_data_t) {
 	C.obs_data_set_default_string(settings, teleport_list_str, empty_str)
 	C.obs_data_set_default_int(settings, quality_str, 90)
-	C.obs_data_set_default_bool(settings, ignore_timestamps_str, false)
 }
 
 //export source_update
@@ -253,7 +246,6 @@ func source_loop(h *teleportSource) {
 
 		teleport := C.GoString(C.obs_data_get_string(settings, teleport_list_str))
 		quality := C.obs_data_get_int(settings, quality_str)
-		ignore_timestamps := C.obs_data_get_bool(settings, ignore_timestamps_str)
 
 		C.obs_data_release(settings)
 
@@ -281,11 +273,7 @@ func source_loop(h *teleportSource) {
 				continue
 			}
 
-			var (
-				err        error
-				videoCount uint64
-				audioCount uint64
-			)
+			var err error
 
 			connMutex.Lock()
 			if shutdown {
@@ -417,11 +405,6 @@ func source_loop(h *teleportSource) {
 							h.frame.height = C.uint(i.image.Bounds().Dy())
 							h.frame.timestamp = C.uint64_t(i.timestamp)
 
-							if ignore_timestamps {
-								h.frame.timestamp = C.uint64_t(videoCount)
-								videoCount++
-							}
-
 							C.obs_source_output_video(h.source, h.frame)
 
 							h.frame.data[0] = nil
@@ -438,11 +421,6 @@ func source_loop(h *teleportSource) {
 					h.audio.format = uint32(wave_header.Format)
 					h.audio.frames = C.uint(wave_header.Frames)
 					h.audio.data[0] = (*C.uint8_t)(unsafe.Pointer(&b[0]))
-
-					if ignore_timestamps {
-						h.audio.timestamp = C.uint64_t(float64(audioCount) * 1000000000.0 * (float64(h.audio.frames) / float64(wave_header.SampleRate)))
-						audioCount++
-					}
 
 					C.obs_source_output_audio(h.source, h.audio)
 
