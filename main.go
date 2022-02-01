@@ -61,6 +61,9 @@ package main
 // extern void (filter_update)(uintptr_t data, obs_data_t *settings);
 // extern void (dummy_update)(uintptr_t data, obs_data_t *settings);
 //
+// typedef void (*activate_t)(uintptr_t data);
+// extern void source_activate(uintptr_t data);
+//
 // typedef struct obs_source_frame* (*filter_video_t)(uintptr_t data, struct obs_source_frame *frames);
 // extern struct obs_source_frame* filter_video(uintptr_t data, struct obs_source_frame *frames);
 //
@@ -136,6 +139,7 @@ func obs_module_load() C.bool {
 		get_properties: C.get_properties_t(unsafe.Pointer(C.source_get_properties)),
 		get_defaults:   C.get_defaults_t(unsafe.Pointer(C.source_get_defaults)),
 		update:         C.update_t(unsafe.Pointer(C.source_update)),
+		activate:       C.activate_t(unsafe.Pointer(C.source_activate)),
 	}, C.sizeof_struct_obs_source_info)
 
 	C.obs_register_source_s(&C.struct_obs_source_info{

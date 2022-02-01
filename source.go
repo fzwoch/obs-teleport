@@ -179,6 +179,13 @@ func source_update(data C.uintptr_t, settings *C.obs_data_t) {
 	go source_loop(h)
 }
 
+//export source_activate
+func source_activate(data C.uintptr_t) {
+	h := cgo.Handle(data).Value().(*teleportSource)
+
+	C.obs_source_output_video(h.source, nil)
+}
+
 func source_loop(h *teleportSource) {
 	defer h.Done()
 
