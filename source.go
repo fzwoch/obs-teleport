@@ -343,12 +343,12 @@ func source_loop(h *teleportSource) {
 					break
 				}
 
-				if !C.obs_source_active(h.source) {
-					continue
-				}
-
 				switch header.Type {
 				case [4]byte{'J', 'P', 'E', 'G'}:
+					if !C.obs_source_active(h.source) {
+						continue
+					}
+
 					info := &imageInfo{
 						timestamp: header.Timestamp,
 						b:         b,
