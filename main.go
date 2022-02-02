@@ -93,6 +93,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"image"
+	"image/color"
 	"unsafe"
 )
 
@@ -343,6 +344,26 @@ func createImage(w C.uint32_t, h C.uint32_t, format C.enum_video_format, data [C
 		}
 
 		copy(img.(*image.RGBA).Pix, unsafe.Slice((*byte)(data[0]), width*height*4))
+	default:
+		img = image.NewRGBA(
+			image.Rectangle{
+				Min: image.Point{0, 0},
+				Max: image.Point{
+					X: width,
+					Y: height,
+				},
+			},
+		)
+		for x := 0; x < width; x++ {
+			for y := 0; y < height; y++ {
+				color := color.RGBA{
+					uint8(255 * x / width),
+					uint8(255 * y / height),
+					55,
+					255}
+				img.(*image.RGBA).Set(x, y, color)
+			}
+		}
 	}
 
 	return
