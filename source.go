@@ -396,13 +396,19 @@ func source_loop(h *teleportSource) {
 							case *image.YCbCr:
 								img := i.image.(*image.YCbCr)
 
-								h.frame.format = C.VIDEO_FORMAT_I420
 								h.frame.linesize[0] = C.uint(img.YStride)
 								h.frame.linesize[1] = C.uint(img.CStride)
 								h.frame.linesize[2] = C.uint(img.CStride)
 								h.frame.data[0] = (*C.uint8_t)(unsafe.Pointer(&img.Y[0]))
 								h.frame.data[1] = (*C.uint8_t)(unsafe.Pointer(&img.Cb[0]))
 								h.frame.data[2] = (*C.uint8_t)(unsafe.Pointer(&img.Cr[0]))
+
+								switch img.SubsampleRatio {
+								case image.YCbCrSubsampleRatio444:
+									h.frame.format = C.VIDEO_FORMAT_I444
+								default:
+									h.frame.format = C.VIDEO_FORMAT_I420
+								}
 							default:
 								h.images = h.images[1:]
 								continue
