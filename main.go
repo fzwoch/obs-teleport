@@ -308,6 +308,26 @@ func createImage(w C.uint32_t, h C.uint32_t, format C.enum_video_format, data [C
 		copy(img.(*image.YCbCr).Y, unsafe.Slice((*byte)(data[0]), width*height))
 		copy(img.(*image.YCbCr).Cb, unsafe.Slice((*byte)(data[1]), width*height/4))
 		copy(img.(*image.YCbCr).Cr, unsafe.Slice((*byte)(data[2]), width*height/4))
+	case C.VIDEO_FORMAT_I444:
+		img = &image.YCbCr{
+			Rect: image.Rectangle{
+				Min: image.Point{0, 0},
+				Max: image.Point{
+					X: width,
+					Y: height,
+				},
+			},
+			YStride:        width,
+			CStride:        width,
+			Y:              make([]byte, width*paddedHeight),
+			Cb:             make([]byte, width*paddedHeight),
+			Cr:             make([]byte, width*paddedHeight),
+			SubsampleRatio: image.YCbCrSubsampleRatio444,
+		}
+
+		copy(img.(*image.YCbCr).Y, unsafe.Slice((*byte)(data[0]), width*height))
+		copy(img.(*image.YCbCr).Cb, unsafe.Slice((*byte)(data[1]), width*height))
+		copy(img.(*image.YCbCr).Cr, unsafe.Slice((*byte)(data[2]), width*height))
 	case C.VIDEO_FORMAT_BGRX:
 		fallthrough
 	case C.VIDEO_FORMAT_BGRA:
