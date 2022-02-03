@@ -174,7 +174,6 @@ func output_raw_video(data C.uintptr_t, frame *C.struct_video_data) {
 		j.done = true
 
 		for len(h.data) > 0 && h.data[0].done {
-
 			h.Lock()
 			if h.conn != nil {
 				_, err := h.conn.Write(h.data[0].b)

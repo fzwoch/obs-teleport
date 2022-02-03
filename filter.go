@@ -181,7 +181,6 @@ func filter_video(data C.uintptr_t, frame *C.struct_obs_source_frame) *C.struct_
 		j.done = true
 
 		for len(h.data) > 0 && h.data[0].done {
-
 			h.Lock()
 			if h.conn != nil {
 				_, err := h.conn.Write(h.data[0].b)
