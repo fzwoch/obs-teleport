@@ -27,7 +27,6 @@ package main
 //
 import "C"
 import (
-	"bytes"
 	"encoding/binary"
 	"encoding/json"
 	"image"
@@ -39,7 +38,6 @@ import (
 	"sync"
 	"unsafe"
 
-	"github.com/pixiv/go-libjpeg/jpeg"
 	"github.com/schollz/peerdiscovery"
 )
 
@@ -159,21 +157,7 @@ func filter_video(data C.uintptr_t, frame *C.struct_obs_source_frame) *C.struct_
 	go func(j *jpegInfo, img image.Image) {
 		defer h.Done()
 
-		p := bytes.Buffer{}
-
-		jpeg.Encode(&p, img, &jpeg.EncoderOptions{
-			Quality: h.quality,
-		})
-
-		head := bytes.Buffer{}
-
-		binary.Write(&head, binary.LittleEndian, &header{
-			Type:      [4]byte{'J', 'P', 'E', 'G'},
-			Timestamp: j.timestamp,
-			Size:      int32(p.Len()),
-		})
-
-		j.b = append(head.Bytes(), p.Bytes()...)
+		j.b = createJpegBuffer(img, j.timestamp, h.quality)
 
 		h.imageLock.Lock()
 		defer h.imageLock.Unlock()
