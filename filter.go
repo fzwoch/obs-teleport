@@ -48,7 +48,7 @@ type teleportFilter struct {
 	done      chan interface{}
 	filter    *C.obs_source_t
 	imageLock sync.Mutex
-	data      []*jpegInfo
+	data      []*queueInfo
 	quality   int
 }
 
@@ -140,7 +140,7 @@ func filter_video(data C.uintptr_t, frame *C.struct_obs_source_frame) *C.struct_
 		return frame
 	}
 
-	j := &jpegInfo{
+	j := &queueInfo{
 		timestamp: uint64(frame.timestamp),
 	}
 
@@ -154,7 +154,7 @@ func filter_video(data C.uintptr_t, frame *C.struct_obs_source_frame) *C.struct_
 	h.imageLock.Unlock()
 
 	h.Add(1)
-	go func(j *jpegInfo, img image.Image) {
+	go func(j *queueInfo, img image.Image) {
 		defer h.Done()
 
 		j.b = createJpegBuffer(img, j.timestamp, h.quality)

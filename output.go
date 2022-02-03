@@ -38,7 +38,7 @@ import (
 	"github.com/schollz/peerdiscovery"
 )
 
-type jpegInfo struct {
+type queueInfo struct {
 	b         []byte
 	timestamp uint64
 	done      bool
@@ -51,7 +51,7 @@ type teleportOutput struct {
 	done          chan interface{}
 	output        *C.obs_output_t
 	imageLock     sync.Mutex
-	data          []*jpegInfo
+	data          []*queueInfo
 	quality       int
 	droppedFrames int
 }
@@ -132,7 +132,7 @@ func output_raw_video(data C.uintptr_t, frame *C.struct_video_data) {
 		return
 	}
 
-	j := &jpegInfo{
+	j := &queueInfo{
 		timestamp: uint64(frame.timestamp),
 	}
 
@@ -147,7 +147,7 @@ func output_raw_video(data C.uintptr_t, frame *C.struct_video_data) {
 	h.imageLock.Unlock()
 
 	h.Add(1)
-	go func(j *jpegInfo, img image.Image) {
+	go func(j *queueInfo, img image.Image) {
 		defer h.Done()
 
 		j.b = createJpegBuffer(img, j.timestamp, h.quality)
