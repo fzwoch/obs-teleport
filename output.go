@@ -50,7 +50,7 @@ type teleportOutput struct {
 	conn          net.Conn
 	done          chan interface{}
 	output        *C.obs_output_t
-	imageLock     sync.Mutex
+	queueLock     sync.Mutex
 	data          []*queueInfo
 	quality       int
 	droppedFrames int
@@ -136,15 +136,15 @@ func output_raw_video(data C.uintptr_t, frame *C.struct_video_data) {
 		timestamp: uint64(frame.timestamp),
 	}
 
-	h.imageLock.Lock()
+	h.queueLock.Lock()
 	if len(h.data) > 20 {
 		h.droppedFrames++
-		h.imageLock.Unlock()
+		h.queueLock.Unlock()
 		return
 	}
 
 	h.data = append(h.data, j)
-	h.imageLock.Unlock()
+	h.queueLock.Unlock()
 
 	h.Add(1)
 	go func(j *queueInfo, img image.Image) {
@@ -152,8 +152,8 @@ func output_raw_video(data C.uintptr_t, frame *C.struct_video_data) {
 
 		j.b = createJpegBuffer(img, j.timestamp, h.quality)
 
-		h.imageLock.Lock()
-		defer h.imageLock.Unlock()
+		h.queueLock.Lock()
+		defer h.queueLock.Unlock()
 
 		j.done = true
 
@@ -211,8 +211,8 @@ func output_raw_audio(data C.uintptr_t, frames *C.struct_audio_data) {
 func output_get_dropped_frames(data C.uintptr_t) C.int {
 	h := cgo.Handle(data).Value().(*teleportOutput)
 
-	h.imageLock.Lock()
-	defer h.imageLock.Unlock()
+	h.queueLock.Lock()
+	defer h.queueLock.Unlock()
 
 	return C.int(h.droppedFrames)
 }

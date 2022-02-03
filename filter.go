@@ -47,7 +47,7 @@ type teleportFilter struct {
 	conn      net.Conn
 	done      chan interface{}
 	filter    *C.obs_source_t
-	imageLock sync.Mutex
+	queueLock sync.Mutex
 	data      []*queueInfo
 	quality   int
 }
@@ -144,14 +144,14 @@ func filter_video(data C.uintptr_t, frame *C.struct_obs_source_frame) *C.struct_
 		timestamp: uint64(frame.timestamp),
 	}
 
-	h.imageLock.Lock()
+	h.queueLock.Lock()
 	if len(h.data) > 20 {
-		h.imageLock.Unlock()
+		h.queueLock.Unlock()
 		return frame
 	}
 
 	h.data = append(h.data, j)
-	h.imageLock.Unlock()
+	h.queueLock.Unlock()
 
 	h.Add(1)
 	go func(j *queueInfo, img image.Image) {
@@ -159,8 +159,8 @@ func filter_video(data C.uintptr_t, frame *C.struct_obs_source_frame) *C.struct_
 
 		j.b = createJpegBuffer(img, j.timestamp, h.quality)
 
-		h.imageLock.Lock()
-		defer h.imageLock.Unlock()
+		h.queueLock.Lock()
+		defer h.queueLock.Unlock()
 
 		j.done = true
 
