@@ -41,7 +41,7 @@ import (
 )
 
 type jpegInfo struct {
-	b         bytes.Buffer
+	b         []byte
 	timestamp uint64
 	done      bool
 }
@@ -135,7 +135,6 @@ func output_raw_video(data C.uintptr_t, frame *C.struct_video_data) {
 	}
 
 	j := &jpegInfo{
-		b:         bytes.Buffer{},
 		timestamp: uint64(frame.timestamp),
 	}
 
@@ -153,9 +152,21 @@ func output_raw_video(data C.uintptr_t, frame *C.struct_video_data) {
 	go func(j *jpegInfo, img image.Image) {
 		defer h.Done()
 
-		jpeg.Encode(&j.b, img, &jpeg.EncoderOptions{
+		p := bytes.Buffer{}
+
+		jpeg.Encode(&p, img, &jpeg.EncoderOptions{
 			Quality: h.quality,
 		})
+
+		head := bytes.Buffer{}
+
+		binary.Write(&head, binary.LittleEndian, &header{
+			Type:      [4]byte{'J', 'P', 'E', 'G'},
+			Timestamp: h.data[0].timestamp,
+			Size:      int32(p.Len()),
+		})
+
+		j.b = append(head.Bytes(), p.Bytes()...)
 
 		h.imageLock.Lock()
 		defer h.imageLock.Unlock()
@@ -163,17 +174,10 @@ func output_raw_video(data C.uintptr_t, frame *C.struct_video_data) {
 		j.done = true
 
 		for len(h.data) > 0 && h.data[0].done {
-			b := bytes.Buffer{}
-
-			binary.Write(&b, binary.LittleEndian, &header{
-				Type:      [4]byte{'J', 'P', 'E', 'G'},
-				Timestamp: h.data[0].timestamp,
-				Size:      int32(h.data[0].b.Len()),
-			})
 
 			h.Lock()
 			if h.conn != nil {
-				_, err := h.conn.Write(append(b.Bytes(), h.data[0].b.Bytes()...))
+				_, err := h.conn.Write(h.data[0].b)
 				if err != nil {
 					h.conn.Close()
 					h.conn = nil
