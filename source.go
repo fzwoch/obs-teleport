@@ -406,6 +406,8 @@ func source_loop(h *teleportSource) {
 								switch img.SubsampleRatio {
 								case image.YCbCrSubsampleRatio444:
 									h.frame.format = C.VIDEO_FORMAT_I444
+								case image.YCbCrSubsampleRatio422:
+									h.frame.format = C.VIDEO_FORMAT_I422
 								default:
 									h.frame.format = C.VIDEO_FORMAT_I420
 								}

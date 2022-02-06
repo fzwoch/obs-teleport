@@ -310,6 +310,52 @@ func createImage(w C.uint32_t, h C.uint32_t, format C.enum_video_format, data [C
 		copy(img.(*image.YCbCr).Y, unsafe.Slice((*byte)(data[0]), width*height))
 		copy(img.(*image.YCbCr).Cb, unsafe.Slice((*byte)(data[1]), width*height/4))
 		copy(img.(*image.YCbCr).Cr, unsafe.Slice((*byte)(data[2]), width*height/4))
+	case C.VIDEO_FORMAT_I422:
+		img = &image.YCbCr{
+			Rect: image.Rectangle{
+				Min: image.Point{0, 0},
+				Max: image.Point{
+					X: width,
+					Y: height,
+				},
+			},
+			YStride:        width,
+			CStride:        width / 2,
+			Y:              make([]byte, width*paddedHeight),
+			Cb:             make([]byte, width*paddedHeight/2),
+			Cr:             make([]byte, width*paddedHeight/2),
+			SubsampleRatio: image.YCbCrSubsampleRatio422,
+		}
+
+		copy(img.(*image.YCbCr).Y, unsafe.Slice((*byte)(data[0]), width*height))
+		copy(img.(*image.YCbCr).Cb, unsafe.Slice((*byte)(data[1]), width*height/2))
+		copy(img.(*image.YCbCr).Cr, unsafe.Slice((*byte)(data[2]), width*height/2))
+	case C.VIDEO_FORMAT_YUY2:
+		img = &image.YCbCr{
+			Rect: image.Rectangle{
+				Min: image.Point{0, 0},
+				Max: image.Point{
+					X: width,
+					Y: height,
+				},
+			},
+			YStride:        width,
+			CStride:        width / 2,
+			Y:              make([]byte, width*paddedHeight),
+			Cb:             make([]byte, width*paddedHeight/2),
+			Cr:             make([]byte, width*paddedHeight/2),
+			SubsampleRatio: image.YCbCrSubsampleRatio422,
+		}
+
+		tmp := unsafe.Slice((*byte)(data[0]), width*height*2)
+
+		for i := 0; i < width*height; i++ {
+			img.(*image.YCbCr).Y[i] = tmp[i*2]
+		}
+		for i := 0; i < width*height/2; i++ {
+			img.(*image.YCbCr).Cb[i] = tmp[4*i+1]
+			img.(*image.YCbCr).Cr[i] = tmp[4*i+3]
+		}
 	case C.VIDEO_FORMAT_I444:
 		img = &image.YCbCr{
 			Rect: image.Rectangle{
