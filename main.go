@@ -97,6 +97,7 @@ import (
 	"unsafe"
 
 	"github.com/pixiv/go-libjpeg/jpeg"
+	"github.com/pixiv/go-libjpeg/rgb"
 )
 
 var obsModulePointer *C.obs_module_t
@@ -356,6 +357,32 @@ func createImage(w C.uint32_t, h C.uint32_t, format C.enum_video_format, data [C
 			img.(*image.YCbCr).Cb[i] = tmp[4*i+1]
 			img.(*image.YCbCr).Cr[i] = tmp[4*i+3]
 		}
+	case C.VIDEO_FORMAT_UYVY:
+		img = &image.YCbCr{
+			Rect: image.Rectangle{
+				Min: image.Point{0, 0},
+				Max: image.Point{
+					X: width,
+					Y: height,
+				},
+			},
+			YStride:        width,
+			CStride:        width / 2,
+			Y:              make([]byte, width*paddedHeight),
+			Cb:             make([]byte, width*paddedHeight/2),
+			Cr:             make([]byte, width*paddedHeight/2),
+			SubsampleRatio: image.YCbCrSubsampleRatio422,
+		}
+
+		tmp := unsafe.Slice((*byte)(data[0]), width*height*2)
+
+		for i := 0; i < width*height; i++ {
+			img.(*image.YCbCr).Y[i] = tmp[i*2+1]
+		}
+		for i := 0; i < width*height/2; i++ {
+			img.(*image.YCbCr).Cb[i] = tmp[4*i+0]
+			img.(*image.YCbCr).Cr[i] = tmp[4*i+2]
+		}
 	case C.VIDEO_FORMAT_I444:
 		img = &image.YCbCr{
 			Rect: image.Rectangle{
@@ -397,6 +424,26 @@ func createImage(w C.uint32_t, h C.uint32_t, format C.enum_video_format, data [C
 			img.(*image.RGBA).Pix[i+0] = tmp[i+2]
 			img.(*image.RGBA).Pix[i+1] = tmp[i+1]
 			img.(*image.RGBA).Pix[i+2] = tmp[i+0]
+		}
+	case C.VIDEO_FORMAT_BGR3:
+		img = &rgb.Image{
+			Rect: image.Rectangle{
+				Min: image.Point{0, 0},
+				Max: image.Point{
+					X: width,
+					Y: height,
+				},
+			},
+			Stride: width * 3,
+			Pix:    make([]byte, width*paddedHeight*3),
+		}
+
+		tmp := unsafe.Slice((*byte)(data[0]), width*height*3)
+
+		for i := 0; i < len(tmp); i += 3 {
+			img.(*rgb.Image).Pix[i+0] = tmp[i+2]
+			img.(*rgb.Image).Pix[i+1] = tmp[i+1]
+			img.(*rgb.Image).Pix[i+2] = tmp[i+0]
 		}
 	case C.VIDEO_FORMAT_RGBA:
 		img = &image.RGBA{
