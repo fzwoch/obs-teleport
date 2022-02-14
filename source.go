@@ -352,7 +352,7 @@ func source_loop(h *teleportSource) {
 
 				switch header.Type {
 				case [4]byte{'J', 'P', 'E', 'G'}:
-					if !C.obs_source_active(h.source) {
+					if !C.obs_source_showing(h.source) {
 						continue
 					}
 
