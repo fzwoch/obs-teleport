@@ -34,7 +34,7 @@ Check `Teleport Enabled`.
 ![](img/teleport-output.png)
 
 
-## Setup Sender as Filter
+## Setup Sender as Audio/Video Filter
 
 Click `<Source> Right click → Filters`.
 
