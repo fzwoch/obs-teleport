@@ -265,15 +265,17 @@ func createImage(w C.uint32_t, h C.uint32_t, format C.enum_video_format, data [C
 
 	paddedHeight := height + 16
 
+	rectangle := image.Rectangle{
+		Max: image.Point{
+			X: width,
+			Y: height,
+		},
+	}
+
 	switch format {
 	case C.VIDEO_FORMAT_NV12:
 		img = &image.YCbCr{
-			Rect: image.Rectangle{
-				Max: image.Point{
-					X: width,
-					Y: height,
-				},
-			},
+			Rect:           rectangle,
 			YStride:        width,
 			CStride:        width / 2,
 			Y:              make([]byte, width*paddedHeight),
@@ -292,12 +294,7 @@ func createImage(w C.uint32_t, h C.uint32_t, format C.enum_video_format, data [C
 		}
 	case C.VIDEO_FORMAT_I420:
 		img = &image.YCbCr{
-			Rect: image.Rectangle{
-				Max: image.Point{
-					X: width,
-					Y: height,
-				},
-			},
+			Rect:           rectangle,
 			YStride:        width,
 			CStride:        width / 2,
 			Y:              make([]byte, width*paddedHeight),
@@ -311,12 +308,7 @@ func createImage(w C.uint32_t, h C.uint32_t, format C.enum_video_format, data [C
 		copy(img.(*image.YCbCr).Cr, unsafe.Slice((*byte)(data[2]), width*height/4))
 	case C.VIDEO_FORMAT_I422:
 		img = &image.YCbCr{
-			Rect: image.Rectangle{
-				Max: image.Point{
-					X: width,
-					Y: height,
-				},
-			},
+			Rect:           rectangle,
 			YStride:        width,
 			CStride:        width / 2,
 			Y:              make([]byte, width*paddedHeight),
@@ -330,12 +322,7 @@ func createImage(w C.uint32_t, h C.uint32_t, format C.enum_video_format, data [C
 		copy(img.(*image.YCbCr).Cr, unsafe.Slice((*byte)(data[2]), width*height/2))
 	case C.VIDEO_FORMAT_YVYU:
 		img = &image.YCbCr{
-			Rect: image.Rectangle{
-				Max: image.Point{
-					X: width,
-					Y: height,
-				},
-			},
+			Rect:           rectangle,
 			YStride:        width,
 			CStride:        width / 2,
 			Y:              make([]byte, width*paddedHeight),
@@ -355,12 +342,7 @@ func createImage(w C.uint32_t, h C.uint32_t, format C.enum_video_format, data [C
 		}
 	case C.VIDEO_FORMAT_YUY2:
 		img = &image.YCbCr{
-			Rect: image.Rectangle{
-				Max: image.Point{
-					X: width,
-					Y: height,
-				},
-			},
+			Rect:           rectangle,
 			YStride:        width,
 			CStride:        width / 2,
 			Y:              make([]byte, width*paddedHeight),
@@ -380,12 +362,7 @@ func createImage(w C.uint32_t, h C.uint32_t, format C.enum_video_format, data [C
 		}
 	case C.VIDEO_FORMAT_UYVY:
 		img = &image.YCbCr{
-			Rect: image.Rectangle{
-				Max: image.Point{
-					X: width,
-					Y: height,
-				},
-			},
+			Rect:           rectangle,
 			YStride:        width,
 			CStride:        width / 2,
 			Y:              make([]byte, width*paddedHeight),
@@ -405,12 +382,7 @@ func createImage(w C.uint32_t, h C.uint32_t, format C.enum_video_format, data [C
 		}
 	case C.VIDEO_FORMAT_I444:
 		img = &image.YCbCr{
-			Rect: image.Rectangle{
-				Max: image.Point{
-					X: width,
-					Y: height,
-				},
-			},
+			Rect:           rectangle,
 			YStride:        width,
 			CStride:        width,
 			Y:              make([]byte, width*paddedHeight),
@@ -426,12 +398,7 @@ func createImage(w C.uint32_t, h C.uint32_t, format C.enum_video_format, data [C
 		fallthrough
 	case C.VIDEO_FORMAT_BGRA:
 		img = &image.RGBA{
-			Rect: image.Rectangle{
-				Max: image.Point{
-					X: width,
-					Y: height,
-				},
-			},
+			Rect:   rectangle,
 			Stride: width * 4,
 			Pix:    make([]byte, width*paddedHeight*4),
 		}
@@ -445,12 +412,7 @@ func createImage(w C.uint32_t, h C.uint32_t, format C.enum_video_format, data [C
 		}
 	case C.VIDEO_FORMAT_BGR3:
 		img = &rgb.Image{
-			Rect: image.Rectangle{
-				Max: image.Point{
-					X: width,
-					Y: height,
-				},
-			},
+			Rect:   rectangle,
 			Stride: width * 3,
 			Pix:    make([]byte, width*paddedHeight*3),
 		}
@@ -464,12 +426,7 @@ func createImage(w C.uint32_t, h C.uint32_t, format C.enum_video_format, data [C
 		}
 	case C.VIDEO_FORMAT_RGBA:
 		img = &image.RGBA{
-			Rect: image.Rectangle{
-				Max: image.Point{
-					X: width,
-					Y: height,
-				},
-			},
+			Rect:   rectangle,
 			Stride: width * 4,
 			Pix:    make([]byte, width*paddedHeight*4),
 		}
@@ -477,12 +434,7 @@ func createImage(w C.uint32_t, h C.uint32_t, format C.enum_video_format, data [C
 		copy(img.(*image.RGBA).Pix, unsafe.Slice((*byte)(data[0]), width*height*4))
 	default:
 		img = image.NewRGBA(
-			image.Rectangle{
-				Max: image.Point{
-					X: width,
-					Y: height,
-				},
-			},
+			rectangle,
 		)
 		for x := 0; x < width; x++ {
 			for y := 0; y < height; y++ {
