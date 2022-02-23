@@ -269,7 +269,6 @@ func createImage(w C.uint32_t, h C.uint32_t, format C.enum_video_format, data [C
 	case C.VIDEO_FORMAT_NV12:
 		img = &image.YCbCr{
 			Rect: image.Rectangle{
-				Min: image.Point{0, 0},
 				Max: image.Point{
 					X: width,
 					Y: height,
@@ -294,7 +293,6 @@ func createImage(w C.uint32_t, h C.uint32_t, format C.enum_video_format, data [C
 	case C.VIDEO_FORMAT_I420:
 		img = &image.YCbCr{
 			Rect: image.Rectangle{
-				Min: image.Point{0, 0},
 				Max: image.Point{
 					X: width,
 					Y: height,
@@ -314,7 +312,6 @@ func createImage(w C.uint32_t, h C.uint32_t, format C.enum_video_format, data [C
 	case C.VIDEO_FORMAT_I422:
 		img = &image.YCbCr{
 			Rect: image.Rectangle{
-				Min: image.Point{0, 0},
 				Max: image.Point{
 					X: width,
 					Y: height,
@@ -334,7 +331,6 @@ func createImage(w C.uint32_t, h C.uint32_t, format C.enum_video_format, data [C
 	case C.VIDEO_FORMAT_YVYU:
 		img = &image.YCbCr{
 			Rect: image.Rectangle{
-				Min: image.Point{0, 0},
 				Max: image.Point{
 					X: width,
 					Y: height,
@@ -360,7 +356,6 @@ func createImage(w C.uint32_t, h C.uint32_t, format C.enum_video_format, data [C
 	case C.VIDEO_FORMAT_YUY2:
 		img = &image.YCbCr{
 			Rect: image.Rectangle{
-				Min: image.Point{0, 0},
 				Max: image.Point{
 					X: width,
 					Y: height,
@@ -386,7 +381,6 @@ func createImage(w C.uint32_t, h C.uint32_t, format C.enum_video_format, data [C
 	case C.VIDEO_FORMAT_UYVY:
 		img = &image.YCbCr{
 			Rect: image.Rectangle{
-				Min: image.Point{0, 0},
 				Max: image.Point{
 					X: width,
 					Y: height,
@@ -412,7 +406,6 @@ func createImage(w C.uint32_t, h C.uint32_t, format C.enum_video_format, data [C
 	case C.VIDEO_FORMAT_I444:
 		img = &image.YCbCr{
 			Rect: image.Rectangle{
-				Min: image.Point{0, 0},
 				Max: image.Point{
 					X: width,
 					Y: height,
@@ -434,7 +427,6 @@ func createImage(w C.uint32_t, h C.uint32_t, format C.enum_video_format, data [C
 	case C.VIDEO_FORMAT_BGRA:
 		img = &image.RGBA{
 			Rect: image.Rectangle{
-				Min: image.Point{0, 0},
 				Max: image.Point{
 					X: width,
 					Y: height,
@@ -454,7 +446,6 @@ func createImage(w C.uint32_t, h C.uint32_t, format C.enum_video_format, data [C
 	case C.VIDEO_FORMAT_BGR3:
 		img = &rgb.Image{
 			Rect: image.Rectangle{
-				Min: image.Point{0, 0},
 				Max: image.Point{
 					X: width,
 					Y: height,
@@ -474,7 +465,6 @@ func createImage(w C.uint32_t, h C.uint32_t, format C.enum_video_format, data [C
 	case C.VIDEO_FORMAT_RGBA:
 		img = &image.RGBA{
 			Rect: image.Rectangle{
-				Min: image.Point{0, 0},
 				Max: image.Point{
 					X: width,
 					Y: height,
@@ -488,7 +478,6 @@ func createImage(w C.uint32_t, h C.uint32_t, format C.enum_video_format, data [C
 	default:
 		img = image.NewRGBA(
 			image.Rectangle{
-				Min: image.Point{0, 0},
 				Max: image.Point{
 					X: width,
 					Y: height,
