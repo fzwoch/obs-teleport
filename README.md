@@ -9,6 +9,12 @@ Just as an alternative option for stream setups with multiple machines wanting t
 [OBS Studio]: https://obsproject.com
 [NDI]: https://ndi.tv/
 
+## Notes
+
+Obviously a network connection must be made between sender and receiver. So they must be on the same network for peer discovery. In case discovery is working, but no video or audio is transmitted make sure to disable the network firewall on the sender.
+
+As of now only the Audio/Video filter mechanic is implemented on the filter feature. Adding it as an effect filter is currenlty not supported. Revert to the output mode in this case.
+
 
 ## Installation
 
