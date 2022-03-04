@@ -134,7 +134,7 @@ var (
 	output *C.obs_output_t
 	dummy  *C.obs_source_t
 
-	version string = "0.0.0"
+	version = "0.0.0"
 )
 
 //export obs_module_load
