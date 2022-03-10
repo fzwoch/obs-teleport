@@ -54,10 +54,11 @@ type peer struct {
 }
 
 type imageInfo struct {
-	timestamp uint64
-	b         []byte
-	image     image.Image
-	done      bool
+	timestamp    uint64
+	b            []byte
+	image        image.Image
+	done         bool
+	image_header image_header
 }
 
 type teleportSource struct {
@@ -73,20 +74,12 @@ type teleportSource struct {
 }
 
 var (
-	teleport_list_str        = C.CString("teleport_list")
-	refresh_readable_str     = C.CString("Refresh List")
-	quality_str              = C.CString("quality")
-	quality_readable_str     = C.CString("Quality")
-	no_services_str          = C.CString("Press 'Refresh List' to search for streams")
-	disabled_str             = C.CString("- Disabled -")
-	color_space_str          = C.CString("color_space")
-	color_space_readable_str = C.CString("Color Space")
-	color_space_709_str      = C.CString("Rec. 709")
-	color_space_601_str      = C.CString("Rec. 601")
-	color_range_str          = C.CString("color_range")
-	color_range_readable_str = C.CString("Color Range")
-	color_range_partial_str  = C.CString("Partial")
-	color_range_full_str     = C.CString("Full")
+	teleport_list_str    = C.CString("teleport_list")
+	refresh_readable_str = C.CString("Refresh List")
+	quality_str          = C.CString("quality")
+	quality_readable_str = C.CString("Quality")
+	no_services_str      = C.CString("Press 'Refresh List' to search for streams")
+	disabled_str         = C.CString("- Disabled -")
 )
 
 //export source_get_name
@@ -165,14 +158,6 @@ func source_get_properties(data C.uintptr_t) *C.obs_properties_t {
 	C.obs_properties_add_button(properties, refresh_readable_str, refresh_readable_str, C.obs_property_clicked_t(unsafe.Pointer(C.refresh_list)))
 	C.obs_properties_add_int_slider(properties, quality_str, quality_readable_str, 0, 100, 1)
 
-	prop := C.obs_properties_add_list(properties, color_space_str, color_space_readable_str, C.OBS_COMBO_TYPE_LIST, C.OBS_COMBO_FORMAT_INT)
-	C.obs_property_list_add_int(prop, color_space_709_str, C.VIDEO_CS_709)
-	C.obs_property_list_add_int(prop, color_space_601_str, C.VIDEO_CS_601)
-
-	prop = C.obs_properties_add_list(properties, color_range_str, color_range_readable_str, C.OBS_COMBO_TYPE_LIST, C.OBS_COMBO_FORMAT_INT)
-	C.obs_property_list_add_int(prop, color_range_partial_str, C.VIDEO_RANGE_PARTIAL)
-	C.obs_property_list_add_int(prop, color_range_full_str, C.VIDEO_RANGE_FULL)
-
 	return properties
 }
 
@@ -180,8 +165,6 @@ func source_get_properties(data C.uintptr_t) *C.obs_properties_t {
 func source_get_defaults(settings *C.obs_data_t) {
 	C.obs_data_set_default_string(settings, teleport_list_str, empty_str)
 	C.obs_data_set_default_int(settings, quality_str, 90)
-	C.obs_data_set_default_int(settings, color_space_str, C.VIDEO_CS_709)
-	C.obs_data_set_default_int(settings, color_range_str, C.VIDEO_RANGE_PARTIAL)
 }
 
 //export source_update
@@ -270,8 +253,6 @@ func source_loop(h *teleportSource) {
 		teleport := C.GoString(C.obs_data_get_string(settings, teleport_list_str))
 		quality := C.obs_data_get_int(settings, quality_str)
 
-		C.video_format_get_parameters(C.enum_video_colorspace(C.obs_data_get_int(settings, color_space_str)), C.enum_video_range_type(C.obs_data_get_int(settings, color_range_str)), &h.frame.color_matrix[0], &h.frame.color_range_min[0], &h.frame.color_range_max[0])
-
 		C.obs_data_release(settings)
 
 		if teleport == "" {
@@ -340,8 +321,9 @@ func source_loop(h *teleportSource) {
 
 			for {
 				var (
-					header      header
-					wave_header wave_header
+					header       header
+					image_header image_header
+					wave_header  wave_header
 				)
 
 				err = binary.Read(c, binary.LittleEndian, &header)
@@ -350,6 +332,10 @@ func source_loop(h *teleportSource) {
 				}
 				switch header.Type {
 				case [4]byte{'J', 'P', 'E', 'G'}:
+					err = binary.Read(c, binary.LittleEndian, &image_header)
+					if err != nil {
+						break
+					}
 				case [4]byte{'W', 'A', 'V', 'E'}:
 					err = binary.Read(c, binary.LittleEndian, &wave_header)
 					if err != nil {
@@ -375,8 +361,9 @@ func source_loop(h *teleportSource) {
 					}
 
 					info := &imageInfo{
-						timestamp: header.Timestamp,
-						b:         b,
+						timestamp:    header.Timestamp,
+						b:            b,
+						image_header: image_header,
 					}
 
 					h.imageLock.Lock()
@@ -437,6 +424,10 @@ func source_loop(h *teleportSource) {
 							h.frame.width = C.uint(i.image.Bounds().Dx())
 							h.frame.height = C.uint(i.image.Bounds().Dy())
 							h.frame.timestamp = C.uint64_t(i.timestamp)
+
+							copy(unsafe.Slice((*float32)(&h.frame.color_matrix[0]), 16), i.image_header.ColorMatrix[:])
+							copy(unsafe.Slice((*float32)(&h.frame.color_range_min[0]), 3), i.image_header.ColorRangeMin[:])
+							copy(unsafe.Slice((*float32)(&h.frame.color_range_max[0]), 3), i.image_header.ColorRangeMax[:])
 
 							C.obs_source_output_video(h.source, h.frame)
 

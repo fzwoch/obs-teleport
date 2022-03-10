@@ -34,14 +34,16 @@ import (
 	"runtime/cgo"
 	"strconv"
 	"sync"
+	"unsafe"
 
 	"github.com/schollz/peerdiscovery"
 )
 
 type queueInfo struct {
-	b         []byte
-	timestamp uint64
-	done      bool
+	b            []byte
+	timestamp    uint64
+	done         bool
+	image_header image_header
 }
 
 type teleportOutput struct {
@@ -136,6 +138,8 @@ func output_raw_video(data C.uintptr_t, frame *C.struct_video_data) {
 		timestamp: uint64(frame.timestamp),
 	}
 
+	C.video_format_get_parameters(info.colorspace, info._range, (*C.float)(unsafe.Pointer(&j.image_header.ColorMatrix[0])), (*C.float)(unsafe.Pointer(&j.image_header.ColorRangeMin[0])), (*C.float)(unsafe.Pointer(&j.image_header.ColorRangeMax[0])))
+
 	h.queueLock.Lock()
 	if len(h.data) > 20 {
 		h.droppedFrames++
@@ -150,7 +154,7 @@ func output_raw_video(data C.uintptr_t, frame *C.struct_video_data) {
 	go func(j *queueInfo, img image.Image) {
 		defer h.Done()
 
-		j.b = createJpegBuffer(img, j.timestamp, h.quality)
+		j.b = createJpegBuffer(img, j.timestamp, j.image_header, h.quality)
 
 		h.queueLock.Lock()
 		defer h.queueLock.Unlock()

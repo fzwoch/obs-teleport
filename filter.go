@@ -144,6 +144,10 @@ func filter_video(data C.uintptr_t, frame *C.struct_obs_source_frame) *C.struct_
 		timestamp: uint64(frame.timestamp),
 	}
 
+	copy(j.image_header.ColorMatrix[:], (unsafe.Slice((*float32)(&frame.color_matrix[0]), 16)))
+	copy(j.image_header.ColorRangeMin[:], (unsafe.Slice((*float32)(&frame.color_range_min[0]), 3)))
+	copy(j.image_header.ColorRangeMax[:], (unsafe.Slice((*float32)(&frame.color_range_max[0]), 3)))
+
 	h.queueLock.Lock()
 	if len(h.data) > 20 {
 		h.queueLock.Unlock()
@@ -157,7 +161,7 @@ func filter_video(data C.uintptr_t, frame *C.struct_obs_source_frame) *C.struct_
 	go func(j *queueInfo, img image.Image) {
 		defer h.Done()
 
-		j.b = createJpegBuffer(img, j.timestamp, h.quality)
+		j.b = createJpegBuffer(img, j.timestamp, j.image_header, h.quality)
 
 		h.queueLock.Lock()
 		defer h.queueLock.Unlock()

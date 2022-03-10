@@ -262,6 +262,12 @@ type header struct {
 	Size      int32
 }
 
+type image_header struct {
+	ColorMatrix   [16]float32
+	ColorRangeMin [3]float32
+	ColorRangeMax [3]float32
+}
+
 type wave_header struct {
 	Format     int32
 	SampleRate int32
@@ -565,7 +571,7 @@ func createAudioBuffer(info *C.struct_audio_output_info, frames *C.struct_obs_au
 	return
 }
 
-func createJpegBuffer(img image.Image, timestamp uint64, quality int) []byte {
+func createJpegBuffer(img image.Image, timestamp uint64, image_header image_header, quality int) []byte {
 	p := bytes.Buffer{}
 
 	jpeg.Encode(&p, img, &jpeg.EncoderOptions{
@@ -579,6 +585,8 @@ func createJpegBuffer(img image.Image, timestamp uint64, quality int) []byte {
 		Timestamp: timestamp,
 		Size:      int32(p.Len()),
 	})
+
+	binary.Write(&head, binary.LittleEndian, &image_header)
 
 	return append(head.Bytes(), p.Bytes()...)
 }
