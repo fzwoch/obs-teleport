@@ -25,10 +25,8 @@ package main
 //
 import "C"
 import (
-	"encoding/binary"
 	"encoding/json"
 	"image"
-	"io"
 	"net"
 	"os"
 	"runtime/cgo"
@@ -54,7 +52,6 @@ type teleportOutput struct {
 	output        *C.obs_output_t
 	queueLock     sync.Mutex
 	data          []*queueInfo
-	quality       int
 	droppedFrames int
 }
 
@@ -128,6 +125,10 @@ func output_raw_video(data C.uintptr_t, frame *C.struct_video_data) {
 
 	h.Unlock()
 
+	settings := C.obs_source_get_settings(dummy)
+	quality := int(C.obs_data_get_int(settings, quality_str))
+	C.obs_data_release(settings)
+
 	video := C.obs_output_video(h.output)
 	info := C.video_output_get_info(video)
 
@@ -156,7 +157,7 @@ func output_raw_video(data C.uintptr_t, frame *C.struct_video_data) {
 	go func(j *queueInfo, img image.Image) {
 		defer h.Done()
 
-		j.b = createJpegBuffer(img, j.timestamp, j.image_header, h.quality)
+		j.b = createJpegBuffer(img, j.timestamp, j.image_header, quality)
 
 		h.queueLock.Lock()
 		defer h.queueLock.Unlock()
@@ -253,40 +254,7 @@ func output_loop(h *teleportOutput) {
 			}
 
 			h.Lock()
-
-			var header options_header
-
-			err = binary.Read(c, binary.LittleEndian, &header)
-			if err != nil {
-				h.Unlock()
-				continue
-			}
-			if header.Magic != [4]byte{'O', 'P', 'T', 'S'} {
-				c.Close()
-				h.Unlock()
-				continue
-			}
-
-			b := make([]byte, header.Size)
-
-			_, err = io.ReadFull(c, b)
-			if err != nil {
-				h.Unlock()
-				continue
-			}
-
-			var options options
-
-			err = json.Unmarshal(b, &options)
-			if err != nil {
-				c.Close()
-				continue
-			}
-
-			h.quality = options.Quality
-
 			h.conns[c] = nil
-
 			h.Unlock()
 		}
 	}()

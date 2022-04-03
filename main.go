@@ -247,15 +247,6 @@ func obs_module_unload() {
 	C.obs_source_release(dummy)
 }
 
-type options_header struct {
-	Magic [4]byte
-	Size  int32
-}
-
-type options struct {
-	Quality int `json:"quality"`
-}
-
 type header struct {
 	Type      [4]byte
 	Timestamp uint64
