@@ -174,13 +174,19 @@ func filter_video(data C.uintptr_t, frame *C.struct_obs_source_frame) *C.struct_
 
 		for len(h.data) > 0 && h.data[0].done {
 			h.Lock()
+			var wg sync.WaitGroup
 			for c := range h.conns {
-				_, err := c.Write(h.data[0].b)
-				if err != nil {
-					c.Close()
-					delete(h.conns, c)
-				}
+				wg.Add(1)
+				go func(c net.Conn) {
+					defer wg.Done()
+					_, err := c.Write(h.data[0].b)
+					if err != nil {
+						c.Close()
+						delete(h.conns, c)
+					}
+				}(c)
 			}
+			wg.Wait()
 			h.Unlock()
 
 			h.data = h.data[1:]
@@ -210,12 +216,19 @@ func filter_audio(data C.uintptr_t, frames *C.struct_obs_audio_data) *C.struct_o
 	h.Lock()
 	defer h.Unlock()
 
+	var wg sync.WaitGroup
+	defer wg.Wait()
+
 	for c := range h.conns {
-		_, err := c.Write(buffer)
-		if err != nil {
-			c.Close()
-			delete(h.conns, c)
-		}
+		wg.Add(1)
+		go func(c net.Conn) {
+			defer wg.Done()
+			_, err := c.Write(buffer)
+			if err != nil {
+				c.Close()
+				delete(h.conns, c)
+			}
+		}(c)
 	}
 
 	return frames
