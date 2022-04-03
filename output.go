@@ -49,7 +49,7 @@ type queueInfo struct {
 type teleportOutput struct {
 	sync.Mutex
 	sync.WaitGroup
-	conn          net.Conn
+	conns         map[net.Conn]interface{}
 	done          chan interface{}
 	output        *C.obs_output_t
 	queueLock     sync.Mutex
@@ -66,6 +66,7 @@ func output_get_name(type_data C.uintptr_t) *C.char {
 //export output_create
 func output_create(settings *C.obs_data_t, output *C.obs_output_t) C.uintptr_t {
 	h := &teleportOutput{
+		conns:  make(map[net.Conn]interface{}),
 		output: output,
 	}
 
@@ -119,11 +120,12 @@ func output_raw_video(data C.uintptr_t, frame *C.struct_video_data) {
 	h := cgo.Handle(data).Value().(*teleportOutput)
 
 	h.Lock()
-	if h.conn == nil {
+	if len(h.conns) == 0 {
 		h.Unlock()
 
 		return
 	}
+
 	h.Unlock()
 
 	video := C.obs_output_video(h.output)
@@ -163,11 +165,11 @@ func output_raw_video(data C.uintptr_t, frame *C.struct_video_data) {
 
 		for len(h.data) > 0 && h.data[0].done {
 			h.Lock()
-			if h.conn != nil {
-				_, err := h.conn.Write(h.data[0].b)
+			for c := range h.conns {
+				_, err := c.Write(h.data[0].b)
 				if err != nil {
-					h.conn.Close()
-					h.conn = nil
+					c.Close()
+					delete(h.conns, c)
 				}
 			}
 			h.Unlock()
@@ -182,7 +184,7 @@ func output_raw_audio(data C.uintptr_t, frames *C.struct_audio_data) {
 	h := cgo.Handle(data).Value().(*teleportOutput)
 
 	h.Lock()
-	if h.conn == nil {
+	if len(h.conns) == 0 {
 		h.Unlock()
 		return
 	}
@@ -202,11 +204,11 @@ func output_raw_audio(data C.uintptr_t, frames *C.struct_audio_data) {
 	h.Lock()
 	defer h.Unlock()
 
-	if h.conn != nil {
-		_, err := h.conn.Write(buffer)
+	for c := range h.conns {
+		_, err := c.Write(buffer)
 		if err != nil {
-			h.conn.Close()
-			h.conn = nil
+			c.Close()
+			delete(h.conns, c)
 		}
 	}
 }
@@ -228,9 +230,9 @@ func output_loop(h *teleportOutput) {
 		h.Lock()
 		defer h.Unlock()
 
-		if h.conn != nil {
-			h.conn.Close()
-			h.conn = nil
+		for c := range h.conns {
+			c.Close()
+			delete(h.conns, c)
 		}
 	}()
 
@@ -251,29 +253,23 @@ func output_loop(h *teleportOutput) {
 			}
 
 			h.Lock()
-			if h.conn != nil {
-				h.conn.Close()
-				h.conn = nil
-			}
-			h.conn = c
 
 			var header options_header
 
-			err = binary.Read(h.conn, binary.LittleEndian, &header)
+			err = binary.Read(c, binary.LittleEndian, &header)
 			if err != nil {
 				h.Unlock()
 				continue
 			}
 			if header.Magic != [4]byte{'O', 'P', 'T', 'S'} {
-				h.conn.Close()
-				h.conn = nil
+				c.Close()
 				h.Unlock()
 				continue
 			}
 
 			b := make([]byte, header.Size)
 
-			_, err = io.ReadFull(h.conn, b)
+			_, err = io.ReadFull(c, b)
 			if err != nil {
 				h.Unlock()
 				continue
@@ -283,13 +279,14 @@ func output_loop(h *teleportOutput) {
 
 			err = json.Unmarshal(b, &options)
 			if err != nil {
-				h.conn.Close()
-				h.conn = nil
-				h.Unlock()
+				c.Close()
 				continue
 			}
 
 			h.quality = options.Quality
+
+			h.conns[c] = nil
+
 			h.Unlock()
 		}
 	}()
