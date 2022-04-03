@@ -76,8 +76,6 @@ type teleportSource struct {
 var (
 	teleport_list_str    = C.CString("teleport_list")
 	refresh_readable_str = C.CString("Refresh List")
-	quality_str          = C.CString("quality")
-	quality_readable_str = C.CString("Quality")
 	no_services_str      = C.CString("Press 'Refresh List' to search for streams")
 	disabled_str         = C.CString("- Disabled -")
 )
@@ -156,7 +154,6 @@ func source_get_properties(data C.uintptr_t) *C.obs_properties_t {
 	refresh_list(properties, nil, data)
 
 	C.obs_properties_add_button(properties, refresh_readable_str, refresh_readable_str, C.obs_property_clicked_t(unsafe.Pointer(C.refresh_list)))
-	C.obs_properties_add_int_slider(properties, quality_str, quality_readable_str, 0, 100, 1)
 
 	return properties
 }
@@ -164,7 +161,6 @@ func source_get_properties(data C.uintptr_t) *C.obs_properties_t {
 //export source_get_defaults
 func source_get_defaults(settings *C.obs_data_t) {
 	C.obs_data_set_default_string(settings, teleport_list_str, empty_str)
-	C.obs_data_set_default_int(settings, quality_str, 90)
 }
 
 //export source_update
@@ -251,7 +247,6 @@ func source_loop(h *teleportSource) {
 		settings := C.obs_source_get_settings(h.source)
 
 		teleport := C.GoString(C.obs_data_get_string(settings, teleport_list_str))
-		quality := C.obs_data_get_int(settings, quality_str)
 
 		C.obs_data_release(settings)
 
@@ -297,25 +292,6 @@ func source_loop(h *teleportSource) {
 				if !errors.Is(err, os.ErrDeadlineExceeded) {
 					time.Sleep(100 * time.Millisecond)
 				}
-				continue
-			}
-
-			j, err := json.Marshal(&options{
-				Quality: int(quality),
-			})
-			if err != nil {
-				continue
-			}
-
-			b := bytes.Buffer{}
-
-			binary.Write(&b, binary.LittleEndian, &options_header{
-				Magic: [4]byte{'O', 'P', 'T', 'S'},
-				Size:  int32(len(j)),
-			})
-
-			_, err = c.Write(append(b.Bytes(), j...))
-			if err != nil {
 				continue
 			}
 

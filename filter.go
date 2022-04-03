@@ -27,10 +27,8 @@ package main
 //
 import "C"
 import (
-	"encoding/binary"
 	"encoding/json"
 	"image"
-	"io"
 	"net"
 	"os"
 	"runtime/cgo"
@@ -49,7 +47,6 @@ type teleportFilter struct {
 	filter    *C.obs_source_t
 	queueLock sync.Mutex
 	data      []*queueInfo
-	quality   int
 }
 
 //export filter_get_name
@@ -104,6 +101,7 @@ func filter_get_properties(data C.uintptr_t) *C.obs_properties_t {
 	prop := C.obs_properties_add_text(properties, identifier_str, identifier_readable_str, C.OBS_TEXT_DEFAULT)
 	C.obs_property_set_long_description(prop, identifier_description_str)
 
+	C.obs_properties_add_int_slider(properties, quality_str, quality_readable_str, 0, 100, 1)
 	C.obs_properties_add_button(properties, apply_str, apply_str, C.obs_property_clicked_t(unsafe.Pointer(C.filter_apply_clicked)))
 
 	return properties
@@ -112,6 +110,7 @@ func filter_get_properties(data C.uintptr_t) *C.obs_properties_t {
 //export filter_get_defaults
 func filter_get_defaults(settings *C.obs_data_t) {
 	C.obs_data_set_default_string(settings, identifier_str, empty_str)
+	C.obs_data_set_default_int(settings, quality_str, 90)
 }
 
 //export filter_update
@@ -135,6 +134,10 @@ func filter_video(data C.uintptr_t, frame *C.struct_obs_source_frame) *C.struct_
 		return frame
 	}
 	h.Unlock()
+
+	settings := C.obs_source_get_settings(h.filter)
+	quality := int(C.obs_data_get_int(settings, quality_str))
+	C.obs_data_release(settings)
 
 	img := createImage(frame.width, frame.height, frame.format, frame.data)
 	if img == nil {
@@ -162,7 +165,7 @@ func filter_video(data C.uintptr_t, frame *C.struct_obs_source_frame) *C.struct_
 	go func(j *queueInfo, img image.Image) {
 		defer h.Done()
 
-		j.b = createJpegBuffer(img, j.timestamp, j.image_header, h.quality)
+		j.b = createJpegBuffer(img, j.timestamp, j.image_header, quality)
 
 		h.queueLock.Lock()
 		defer h.queueLock.Unlock()
@@ -249,41 +252,7 @@ func filter_loop(h *teleportFilter) {
 			}
 
 			h.Lock()
-
-			var header options_header
-
-			err = binary.Read(c, binary.LittleEndian, &header)
-			if err != nil {
-				h.Unlock()
-				continue
-			}
-			if header.Magic != [4]byte{'O', 'P', 'T', 'S'} {
-				c.Close()
-				h.Unlock()
-				continue
-			}
-
-			b := make([]byte, header.Size)
-
-			_, err = io.ReadFull(c, b)
-			if err != nil {
-				h.Unlock()
-				continue
-			}
-
-			var options options
-
-			err = json.Unmarshal(b, &options)
-			if err != nil {
-				c.Close()
-				h.Unlock()
-				continue
-			}
-
-			h.quality = options.Quality
-
 			h.conns[c] = nil
-
 			h.Unlock()
 		}
 	}()

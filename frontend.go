@@ -35,6 +35,8 @@ var (
 	identifier_str                = C.CString("identifier")
 	identifier_readable_str       = C.CString("Identifier")
 	identifier_description_str    = C.CString("Name of the stream. Uses hostname if blank.")
+	quality_str                   = C.CString("quality")
+	quality_readable_str          = C.CString("Quality")
 	apply_str                     = C.CString("Apply")
 	empty_str                     = C.CString("")
 )
@@ -82,6 +84,8 @@ func dummy_get_properties(data C.uintptr_t) *C.obs_properties_t {
 	prop := C.obs_properties_add_text(properties, identifier_str, identifier_readable_str, C.OBS_TEXT_DEFAULT)
 	C.obs_property_set_long_description(prop, identifier_description_str)
 
+	C.obs_properties_add_int_slider(properties, quality_str, quality_readable_str, 0, 100, 1)
+
 	return properties
 }
 
@@ -89,6 +93,7 @@ func dummy_get_properties(data C.uintptr_t) *C.obs_properties_t {
 func dummy_get_defaults(settings *C.obs_data_t) {
 	C.obs_data_set_default_bool(settings, teleport_enabled_str, false)
 	C.obs_data_set_default_string(settings, identifier_str, empty_str)
+	C.obs_data_set_default_int(settings, quality_str, 90)
 }
 
 //export dummy_update
