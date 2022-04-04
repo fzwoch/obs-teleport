@@ -41,6 +41,7 @@ var (
 	quality_readable_str          = C.CString("Quality")
 	apply_str                     = C.CString("Apply")
 	empty_str                     = C.CString("")
+	config_str                    = C.CString("obs-teleport.json")
 
 	output *C.obs_output_t
 	dummy  *C.obs_source_t

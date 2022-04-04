@@ -128,7 +128,6 @@ var (
 	frontend_str       = C.CString("Teleport")
 	frontend_audio_str = C.CString("Teleport (Audio)")
 	dummy_str          = C.CString("teleport-dummy")
-	config_str         = C.CString("obs-teleport.json")
 
 	version = "0.0.0"
 )
