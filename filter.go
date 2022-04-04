@@ -36,7 +36,6 @@ import (
 	"sync"
 	"unsafe"
 
-	"github.com/pixiv/go-libjpeg/rgb"
 	"github.com/schollz/peerdiscovery"
 )
 
@@ -150,14 +149,12 @@ func filter_video(data C.uintptr_t, frame *C.struct_obs_source_frame) *C.struct_
 	}
 
 	switch img.(type) {
-	case *image.RGBA:
-		C.video_format_get_parameters(C.VIDEO_CS_SRGB, C.VIDEO_RANGE_FULL, (*C.float)(unsafe.Pointer(&j.image_header.ColorMatrix[0])), (*C.float)(unsafe.Pointer(&j.image_header.ColorRangeMin[0])), (*C.float)(unsafe.Pointer(&j.image_header.ColorRangeMax[0])))
-	case *rgb.Image:
-		C.video_format_get_parameters(C.VIDEO_CS_SRGB, C.VIDEO_RANGE_FULL, (*C.float)(unsafe.Pointer(&j.image_header.ColorMatrix[0])), (*C.float)(unsafe.Pointer(&j.image_header.ColorRangeMin[0])), (*C.float)(unsafe.Pointer(&j.image_header.ColorRangeMax[0])))
-	default:
+	case *image.YCbCr:
 		copy(j.image_header.ColorMatrix[:], (unsafe.Slice((*float32)(&frame.color_matrix[0]), 16)))
 		copy(j.image_header.ColorRangeMin[:], (unsafe.Slice((*float32)(&frame.color_range_min[0]), 3)))
 		copy(j.image_header.ColorRangeMax[:], (unsafe.Slice((*float32)(&frame.color_range_max[0]), 3)))
+	default:
+		C.video_format_get_parameters(C.VIDEO_CS_SRGB, C.VIDEO_RANGE_FULL, (*C.float)(unsafe.Pointer(&j.image_header.ColorMatrix[0])), (*C.float)(unsafe.Pointer(&j.image_header.ColorRangeMin[0])), (*C.float)(unsafe.Pointer(&j.image_header.ColorRangeMax[0])))
 	}
 
 	h.queueLock.Lock()
