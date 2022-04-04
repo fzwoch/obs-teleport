@@ -23,10 +23,12 @@ package main
 //
 // #include <obs-module.h>
 // #include <obs-frontend-api.h>
+// #include <util/platform.h>
 //
 import "C"
 import (
 	"runtime/cgo"
+	"unsafe"
 )
 
 var (
@@ -39,6 +41,9 @@ var (
 	quality_readable_str          = C.CString("Quality")
 	apply_str                     = C.CString("Apply")
 	empty_str                     = C.CString("")
+
+	output *C.obs_output_t
+	dummy  *C.obs_source_t
 )
 
 //export frontend_cb
@@ -49,10 +54,37 @@ func frontend_cb(data C.uintptr_t) {
 //export frontend_event_cb
 func frontend_event_cb(event C.enum_obs_frontend_event, data C.uintptr_t) {
 	switch event {
+	case C.OBS_FRONTEND_EVENT_FINISHED_LOADING:
+		output = C.obs_output_create(output_str, frontend_str, nil, nil)
+		dummy = C.obs_source_create(dummy_str, frontend_str, nil, nil)
+
+		config := C.obs_module_get_config_path(C.obs_current_module(), nil)
+
+		C.os_mkdirs(config)
+		C.bfree(unsafe.Pointer(config))
+
+		config = C.obs_module_get_config_path(C.obs_current_module(), config_str)
+
+		settings := C.obs_data_create_from_json_file(config)
+		C.obs_source_update(dummy, settings)
+		C.obs_data_release(settings)
+
+		C.bfree(unsafe.Pointer(config))
 	case C.OBS_FRONTEND_EVENT_EXIT:
 		if C.obs_output_active(output) {
 			C.obs_output_stop(output)
 		}
+
+		config := C.obs_module_get_config_path(C.obs_current_module(), config_str)
+
+		settings := C.obs_source_get_settings(dummy)
+		C.obs_data_save_json(settings, config)
+		C.obs_data_release(settings)
+
+		C.bfree(unsafe.Pointer(config))
+
+		C.obs_output_release(output)
+		C.obs_source_release(dummy)
 	}
 }
 
