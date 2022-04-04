@@ -43,6 +43,7 @@ type teleportFilter struct {
 	sync.Mutex
 	sync.WaitGroup
 	conns     map[net.Conn]interface{}
+	connsLock sync.Mutex
 	done      chan interface{}
 	filter    *C.obs_source_t
 	queueLock sync.Mutex
@@ -187,7 +188,9 @@ func filter_video(data C.uintptr_t, frame *C.struct_obs_source_frame) *C.struct_
 					_, err := c.Write(h.data[0].b)
 					if err != nil {
 						c.Close()
+						h.connsLock.Lock()
 						delete(h.conns, c)
+						h.connsLock.Unlock()
 					}
 				}(c)
 			}
@@ -231,7 +234,9 @@ func filter_audio(data C.uintptr_t, frames *C.struct_obs_audio_data) *C.struct_o
 			_, err := c.Write(buffer)
 			if err != nil {
 				c.Close()
+				h.connsLock.Lock()
 				delete(h.conns, c)
+				h.connsLock.Unlock()
 			}
 		}(c)
 	}

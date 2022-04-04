@@ -48,6 +48,7 @@ type teleportOutput struct {
 	sync.Mutex
 	sync.WaitGroup
 	conns         map[net.Conn]interface{}
+	connsLock     sync.Mutex
 	done          chan interface{}
 	output        *C.obs_output_t
 	queueLock     sync.Mutex
@@ -119,10 +120,8 @@ func output_raw_video(data C.uintptr_t, frame *C.struct_video_data) {
 	h.Lock()
 	if len(h.conns) == 0 {
 		h.Unlock()
-
 		return
 	}
-
 	h.Unlock()
 
 	settings := C.obs_source_get_settings(dummy)
@@ -174,7 +173,9 @@ func output_raw_video(data C.uintptr_t, frame *C.struct_video_data) {
 					_, err := c.Write(h.data[0].b)
 					if err != nil {
 						c.Close()
+						h.connsLock.Lock()
 						delete(h.conns, c)
+						h.connsLock.Unlock()
 					}
 				}(c)
 			}
@@ -221,7 +222,9 @@ func output_raw_audio(data C.uintptr_t, frames *C.struct_audio_data) {
 			_, err := c.Write(buffer)
 			if err != nil {
 				c.Close()
+				h.connsLock.Lock()
 				delete(h.conns, c)
+				h.connsLock.Unlock()
 			}
 		}(c)
 	}
