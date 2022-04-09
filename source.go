@@ -42,6 +42,7 @@ import (
 	"time"
 	"unsafe"
 
+	qoi "github.com/arian/go-qoi"
 	"github.com/pixiv/go-libjpeg/jpeg"
 	"github.com/schollz/peerdiscovery"
 )
@@ -307,6 +308,8 @@ func source_loop(h *teleportSource) {
 					break
 				}
 				switch header.Type {
+				case [4]byte{'Q', 'O', 'I', 'F'}:
+					fallthrough
 				case [4]byte{'J', 'P', 'E', 'G'}:
 					err = binary.Read(c, binary.LittleEndian, &image_header)
 					if err != nil {
@@ -331,6 +334,8 @@ func source_loop(h *teleportSource) {
 				}
 
 				switch header.Type {
+				case [4]byte{'Q', 'O', 'I', 'F'}:
+					fallthrough
 				case [4]byte{'J', 'P', 'E', 'G'}:
 					if !C.obs_source_showing(h.source) {
 						continue
@@ -357,7 +362,14 @@ func source_loop(h *teleportSource) {
 
 						reader := bytes.NewReader(info.b)
 
-						img, _ := jpeg.Decode(reader, &jpeg.DecoderOptions{})
+						var img image.Image
+
+						switch header.Type {
+						case [4]byte{'Q', 'O', 'I', 'F'}:
+							img, err = qoi.Decode(reader)
+						default:
+							img, _ = jpeg.Decode(reader, &jpeg.DecoderOptions{})
+						}
 
 						h.imageLock.Lock()
 						defer h.imageLock.Unlock()
@@ -392,6 +404,12 @@ func source_loop(h *teleportSource) {
 								default:
 									h.frame.format = C.VIDEO_FORMAT_I420
 								}
+							case *image.NRGBA:
+								img := i.image.(*image.NRGBA)
+
+								h.frame.linesize[0] = C.uint(img.Stride)
+								h.frame.data[0] = (*C.uint8_t)(unsafe.Pointer(&img.Pix[0]))
+								h.frame.format = C.VIDEO_FORMAT_RGBA
 							default:
 								h.images = h.images[1:]
 								continue

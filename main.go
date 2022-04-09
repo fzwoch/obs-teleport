@@ -99,6 +99,7 @@ import (
 	"image/color"
 	"unsafe"
 
+	qoi "github.com/arian/go-qoi"
 	"github.com/pixiv/go-libjpeg/jpeg"
 	"github.com/pixiv/go-libjpeg/rgb"
 )
@@ -552,6 +553,24 @@ func createJpegBuffer(img image.Image, timestamp uint64, image_header image_head
 
 	binary.Write(&head, binary.LittleEndian, &header{
 		Type:      [4]byte{'J', 'P', 'E', 'G'},
+		Timestamp: timestamp,
+		Size:      int32(p.Len()),
+	})
+
+	binary.Write(&head, binary.LittleEndian, &image_header)
+
+	return append(head.Bytes(), p.Bytes()...)
+}
+
+func createQoiBuffer(img image.Image, timestamp uint64, image_header image_header) []byte {
+	p := bytes.Buffer{}
+
+	qoi.Encode(&p, img)
+
+	head := bytes.Buffer{}
+
+	binary.Write(&head, binary.LittleEndian, &header{
+		Type:      [4]byte{'Q', 'O', 'I', 'F'},
 		Timestamp: timestamp,
 		Size:      int32(p.Len()),
 	})

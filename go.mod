@@ -3,6 +3,7 @@ module obs-teleport
 go 1.17
 
 require (
+	github.com/arian/go-qoi v0.0.0-20211228130211-c3d35b145905
 	github.com/pixiv/go-libjpeg v0.0.0-20190822045933-3da21a74767d
 	github.com/schollz/peerdiscovery v1.6.11
 )
