@@ -99,9 +99,9 @@ import (
 	"image/color"
 	"unsafe"
 
-	qoi "github.com/arian/go-qoi"
 	"github.com/pixiv/go-libjpeg/jpeg"
 	"github.com/pixiv/go-libjpeg/rgb"
+	"github.com/xfmoulet/qoi"
 )
 
 var obsModulePointer *C.obs_module_t
