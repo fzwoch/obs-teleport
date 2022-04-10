@@ -42,9 +42,9 @@ import (
 	"time"
 	"unsafe"
 
-	qoi "github.com/arian/go-qoi"
 	"github.com/pixiv/go-libjpeg/jpeg"
 	"github.com/schollz/peerdiscovery"
+	"github.com/xfmoulet/qoi"
 )
 
 type peer struct {
