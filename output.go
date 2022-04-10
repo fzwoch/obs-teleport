@@ -156,7 +156,7 @@ func output_raw_video(data C.uintptr_t, frame *C.struct_video_data) {
 	go func(j *queueInfo, img image.Image) {
 		defer h.Done()
 
-		j.b = createJpegBuffer(img, j.timestamp, j.image_header, quality)
+		j.b = createEncodedBuffer(img, j.timestamp, j.image_header, quality)
 
 		h.queueLock.Lock()
 		defer h.queueLock.Unlock()

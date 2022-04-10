@@ -542,35 +542,24 @@ func createAudioBuffer(info *C.struct_audio_output_info, frames *C.struct_obs_au
 	return
 }
 
-func createJpegBuffer(img image.Image, timestamp uint64, image_header image_header, quality int) []byte {
+func createEncodedBuffer(img image.Image, timestamp uint64, image_header image_header, quality int) []byte {
 	p := bytes.Buffer{}
 
-	jpeg.Encode(&p, img, &jpeg.EncoderOptions{
-		Quality: quality,
-	})
+	_type := [4]byte{'J', 'P', 'E', 'G'}
+
+	if quality < 0 {
+		qoi.Encode(&p, img)
+		_type = [4]byte{'Q', 'O', 'I', 'F'}
+	} else {
+		jpeg.Encode(&p, img, &jpeg.EncoderOptions{
+			Quality: quality,
+		})
+	}
 
 	head := bytes.Buffer{}
 
 	binary.Write(&head, binary.LittleEndian, &header{
-		Type:      [4]byte{'J', 'P', 'E', 'G'},
-		Timestamp: timestamp,
-		Size:      int32(p.Len()),
-	})
-
-	binary.Write(&head, binary.LittleEndian, &image_header)
-
-	return append(head.Bytes(), p.Bytes()...)
-}
-
-func createQoiBuffer(img image.Image, timestamp uint64, image_header image_header) []byte {
-	p := bytes.Buffer{}
-
-	qoi.Encode(&p, img)
-
-	head := bytes.Buffer{}
-
-	binary.Write(&head, binary.LittleEndian, &header{
-		Type:      [4]byte{'Q', 'O', 'I', 'F'},
+		Type:      _type,
 		Timestamp: timestamp,
 		Size:      int32(p.Len()),
 	})

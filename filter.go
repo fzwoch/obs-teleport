@@ -177,9 +177,7 @@ func filter_video(data C.uintptr_t, frame *C.struct_obs_source_frame) *C.struct_
 	go func(j *queueInfo, img image.Image) {
 		defer h.Done()
 
-		//	j.b = createJpegBuffer(img, j.timestamp, j.image_header, quality)
-		j.b = createQoiBuffer(img, j.timestamp, j.image_header)
-		_ = quality
+		j.b = createEncodedBuffer(img, j.timestamp, j.image_header, -1)
 
 		h.queueLock.Lock()
 		defer h.queueLock.Unlock()
