@@ -366,7 +366,7 @@ func source_loop(h *teleportSource) {
 
 						switch header.Type {
 						case [4]byte{'Q', 'O', 'I', 'F'}:
-							img, err = qoi.Decode(reader)
+							img, _ = qoi.Decode(reader)
 						default:
 							img, _ = jpeg.Decode(reader, &jpeg.DecoderOptions{})
 						}
