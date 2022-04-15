@@ -394,6 +394,7 @@ func createImage(w C.uint32_t, h C.uint32_t, format C.enum_video_format, data [C
 			img.(*image.RGBA).Pix[i+0] = tmp[i+2]
 			img.(*image.RGBA).Pix[i+1] = tmp[i+1]
 			img.(*image.RGBA).Pix[i+2] = tmp[i+0]
+			img.(*image.RGBA).Pix[i+3] = tmp[i+3]
 		}
 	case C.VIDEO_FORMAT_BGR3:
 		img = &rgb.Image{
