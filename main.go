@@ -367,7 +367,20 @@ func createImage(w C.uint32_t, h C.uint32_t, format C.enum_video_format, data [C
 		copy(img.(*image.YCbCr).Cb, unsafe.Slice((*byte)(data[1]), width*height))
 		copy(img.(*image.YCbCr).Cr, unsafe.Slice((*byte)(data[2]), width*height))
 	case C.VIDEO_FORMAT_BGRX:
-		fallthrough
+		img = &image.RGBA{
+			Rect:   rectangle,
+			Stride: width * 4,
+			Pix:    make([]byte, width*paddedHeight*4),
+		}
+
+		tmp := unsafe.Slice((*byte)(data[0]), width*height*4)
+
+		for i := 0; i < len(tmp); i += 4 {
+			img.(*image.RGBA).Pix[i+0] = tmp[i+2]
+			img.(*image.RGBA).Pix[i+1] = tmp[i+1]
+			img.(*image.RGBA).Pix[i+2] = tmp[i+0]
+			img.(*image.RGBA).Pix[i+3] = 0xff
+		}
 	case C.VIDEO_FORMAT_BGRA:
 		img = &image.RGBA{
 			Rect:   rectangle,
