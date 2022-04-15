@@ -43,6 +43,9 @@ var (
 	port_str                      = C.CString("port")
 	port_readable_str             = C.CString("Port")
 	port_description_str          = C.CString("0 means 'Auto'")
+	lossless_str                  = C.CString("lossless")
+	lossless_readable_str         = C.CString("Lossless")
+	lossless_description_str      = C.CString("Lossless video with transparency. Increases bandwidth and CPU usage by A LOT.")
 	apply_str                     = C.CString("Apply")
 	empty_str                     = C.CString("")
 	config_str                    = C.CString("obs-teleport.json")
@@ -126,6 +129,9 @@ func dummy_get_properties(data C.uintptr_t) *C.obs_properties_t {
 	prop = C.obs_properties_add_int(properties, port_str, port_readable_str, 0, math.MaxUint16, 1)
 	C.obs_property_set_long_description(prop, port_description_str)
 
+	prop = C.obs_properties_add_bool(properties, lossless_str, lossless_readable_str)
+	C.obs_property_set_long_description(prop, lossless_description_str)
+
 	return properties
 }
 
@@ -135,6 +141,7 @@ func dummy_get_defaults(settings *C.obs_data_t) {
 	C.obs_data_set_default_string(settings, identifier_str, empty_str)
 	C.obs_data_set_default_int(settings, quality_str, 90)
 	C.obs_data_set_default_int(settings, port_str, 0)
+	C.obs_data_set_default_bool(settings, lossless_str, false)
 }
 
 //export dummy_update

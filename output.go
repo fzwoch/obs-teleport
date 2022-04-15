@@ -126,6 +126,9 @@ func output_raw_video(data C.uintptr_t, frame *C.struct_video_data) {
 
 	settings := C.obs_source_get_settings(dummy)
 	quality := int(C.obs_data_get_int(settings, quality_str))
+	if C.obs_data_get_bool(settings, lossless_str) {
+		quality = -1
+	}
 	C.obs_data_release(settings)
 
 	video := C.obs_output_video(h.output)

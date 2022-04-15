@@ -108,6 +108,9 @@ func filter_get_properties(data C.uintptr_t) *C.obs_properties_t {
 	prop = C.obs_properties_add_int(properties, port_str, port_readable_str, 0, math.MaxUint16, 1)
 	C.obs_property_set_long_description(prop, port_description_str)
 
+	prop = C.obs_properties_add_bool(properties, lossless_str, lossless_readable_str)
+	C.obs_property_set_long_description(prop, lossless_description_str)
+
 	C.obs_properties_add_button(properties, apply_str, apply_str, C.obs_property_clicked_t(unsafe.Pointer(C.filter_apply_clicked)))
 
 	return properties
@@ -118,6 +121,7 @@ func filter_get_defaults(settings *C.obs_data_t) {
 	C.obs_data_set_default_string(settings, identifier_str, empty_str)
 	C.obs_data_set_default_int(settings, quality_str, 90)
 	C.obs_data_set_default_int(settings, port_str, 0)
+	C.obs_data_set_default_bool(settings, lossless_str, false)
 }
 
 //export filter_update
@@ -144,6 +148,9 @@ func filter_video(data C.uintptr_t, frame *C.struct_obs_source_frame) *C.struct_
 
 	settings := C.obs_source_get_settings(h.filter)
 	quality := int(C.obs_data_get_int(settings, quality_str))
+	if C.obs_data_get_bool(settings, lossless_str) {
+		quality = -1
+	}
 	C.obs_data_release(settings)
 
 	img := createImage(frame.width, frame.height, frame.format, frame.data)
@@ -177,7 +184,6 @@ func filter_video(data C.uintptr_t, frame *C.struct_obs_source_frame) *C.struct_
 	go func(j *queueInfo, img image.Image) {
 		defer h.Done()
 
-		quality = -1
 		j.b = createEncodedBuffer(img, j.timestamp, j.image_header, quality)
 
 		h.queueLock.Lock()
