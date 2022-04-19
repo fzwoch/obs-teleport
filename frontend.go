@@ -27,6 +27,7 @@ package main
 //
 import "C"
 import (
+	"math"
 	"runtime/cgo"
 	"unsafe"
 )
@@ -39,6 +40,9 @@ var (
 	identifier_description_str    = C.CString("Name of the stream. Uses hostname if blank.")
 	quality_str                   = C.CString("quality")
 	quality_readable_str          = C.CString("Quality")
+	port_str                      = C.CString("port")
+	port_readable_str             = C.CString("Port")
+	port_description_str          = C.CString("0 means 'Auto'")
 	apply_str                     = C.CString("Apply")
 	empty_str                     = C.CString("")
 	config_str                    = C.CString("obs-teleport.json")
@@ -119,6 +123,9 @@ func dummy_get_properties(data C.uintptr_t) *C.obs_properties_t {
 
 	C.obs_properties_add_int_slider(properties, quality_str, quality_readable_str, 0, 100, 1)
 
+	prop = C.obs_properties_add_int(properties, port_str, port_readable_str, 0, math.MaxUint16, 1)
+	C.obs_property_set_long_description(prop, port_description_str)
+
 	return properties
 }
 
@@ -127,6 +134,7 @@ func dummy_get_defaults(settings *C.obs_data_t) {
 	C.obs_data_set_default_bool(settings, teleport_enabled_str, false)
 	C.obs_data_set_default_string(settings, identifier_str, empty_str)
 	C.obs_data_set_default_int(settings, quality_str, 90)
+	C.obs_data_set_default_int(settings, port_str, 0)
 }
 
 //export dummy_update

@@ -253,7 +253,11 @@ func output_loop(h *teleportOutput) {
 		}
 	}()
 
-	l, err := net.Listen("tcp", "")
+	settings := C.obs_source_get_settings(dummy)
+	listenPort := int(C.obs_data_get_int(settings, port_str))
+	C.obs_data_release(settings)
+
+	l, err := net.Listen("tcp", ":"+strconv.Itoa(listenPort))
 	if err != nil {
 		panic(err)
 	}

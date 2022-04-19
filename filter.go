@@ -29,6 +29,7 @@ import "C"
 import (
 	"encoding/json"
 	"image"
+	"math"
 	"net"
 	"os"
 	"runtime/cgo"
@@ -103,6 +104,10 @@ func filter_get_properties(data C.uintptr_t) *C.obs_properties_t {
 	C.obs_property_set_long_description(prop, identifier_description_str)
 
 	C.obs_properties_add_int_slider(properties, quality_str, quality_readable_str, 0, 100, 1)
+
+	prop = C.obs_properties_add_int(properties, port_str, port_readable_str, 0, math.MaxUint16, 1)
+	C.obs_property_set_long_description(prop, port_description_str)
+
 	C.obs_properties_add_button(properties, apply_str, apply_str, C.obs_property_clicked_t(unsafe.Pointer(C.filter_apply_clicked)))
 
 	return properties
@@ -112,6 +117,7 @@ func filter_get_properties(data C.uintptr_t) *C.obs_properties_t {
 func filter_get_defaults(settings *C.obs_data_t) {
 	C.obs_data_set_default_string(settings, identifier_str, empty_str)
 	C.obs_data_set_default_int(settings, quality_str, 90)
+	C.obs_data_set_default_int(settings, port_str, 0)
 }
 
 //export filter_update
@@ -258,7 +264,11 @@ func filter_loop(h *teleportFilter) {
 
 	}()
 
-	l, err := net.Listen("tcp", "")
+	settings := C.obs_source_get_settings(h.filter)
+	listenPort := int(C.obs_data_get_int(settings, port_str))
+	C.obs_data_release(settings)
+
+	l, err := net.Listen("tcp", ":"+strconv.Itoa(listenPort))
 	if err != nil {
 		panic(err)
 	}
