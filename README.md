@@ -13,6 +13,8 @@ Just as an alternative option for stream setups with multiple machines wanting t
 
 Obviously a network connection must be made between sender and receiver. So they must be on the same network for peer discovery. In case discovery is working, but no video or audio is transmitted make sure to disable the network firewall on the sender.
 
+Alternatively you can force the sender to listen on a specific port and set the firewall to allow this port to accept connections.
+
 As of now only the Audio/Video filter mechanic is implemented on the filter feature. Adding it as an effect filter is currenlty not supported. Revert to the output mode in this case.
 
 
