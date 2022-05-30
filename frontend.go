@@ -25,6 +25,8 @@ package main
 // #include <obs-frontend-api.h>
 // #include <util/platform.h>
 //
+// extern void frontend_cb(uintptr_t data);
+//
 import "C"
 import (
 	"math"
@@ -60,6 +62,8 @@ func frontend_cb(data C.uintptr_t) {
 func frontend_event_cb(event C.enum_obs_frontend_event, data C.uintptr_t) {
 	switch event {
 	case C.OBS_FRONTEND_EVENT_FINISHED_LOADING:
+		C.obs_frontend_add_tools_menu_item(frontend_str, C.obs_frontend_cb(unsafe.Pointer(C.frontend_cb)), nil)
+
 		output = C.obs_output_create(output_str, frontend_str, nil, nil)
 		dummy = C.obs_source_create(dummy_str, frontend_str, nil, nil)
 

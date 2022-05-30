@@ -84,7 +84,6 @@ package main
 // typedef int (*get_dropped_frames_t)(uintptr_t data);
 // extern int output_get_dropped_frames(uintptr_t data);
 //
-// extern void frontend_cb(uintptr_t data);
 // extern void frontend_event_cb(enum obs_frontend_event event, uintptr_t data);
 //
 // static void blog_version(const char* string) {
@@ -191,7 +190,6 @@ func obs_module_load() C.bool {
 		get_dropped_frames: C.get_dropped_frames_t(unsafe.Pointer(C.output_get_dropped_frames)),
 	}, C.sizeof_struct_obs_output_info)
 
-	C.obs_frontend_add_tools_menu_item(frontend_str, C.obs_frontend_cb(unsafe.Pointer(C.frontend_cb)), nil)
 	C.obs_frontend_add_event_callback(C.obs_frontend_event_cb(unsafe.Pointer(C.frontend_event_cb)), nil)
 
 	// this is just here to have a way to show some UI properties for the output module.
