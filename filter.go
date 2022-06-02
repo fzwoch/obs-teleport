@@ -103,10 +103,10 @@ func filter_get_properties(data C.uintptr_t) *C.obs_properties_t {
 	prop := C.obs_properties_add_text(properties, identifier_str, identifier_readable_str, C.OBS_TEXT_DEFAULT)
 	C.obs_property_set_long_description(prop, identifier_description_str)
 
-	C.obs_properties_add_int_slider(properties, quality_str, quality_readable_str, 0, 100, 1)
-
 	prop = C.obs_properties_add_int(properties, port_str, port_readable_str, 0, math.MaxUint16, 1)
 	C.obs_property_set_long_description(prop, port_description_str)
+
+	C.obs_properties_add_int_slider(properties, quality_str, quality_readable_str, 0, 100, 1)
 
 	C.obs_properties_add_button(properties, apply_str, apply_str, C.obs_property_clicked_t(unsafe.Pointer(C.filter_apply_clicked)))
 
@@ -116,8 +116,8 @@ func filter_get_properties(data C.uintptr_t) *C.obs_properties_t {
 //export filter_get_defaults
 func filter_get_defaults(settings *C.obs_data_t) {
 	C.obs_data_set_default_string(settings, identifier_str, empty_str)
-	C.obs_data_set_default_int(settings, quality_str, 90)
 	C.obs_data_set_default_int(settings, port_str, 0)
+	C.obs_data_set_default_int(settings, quality_str, 90)
 }
 
 //export filter_update
