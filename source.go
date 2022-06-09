@@ -392,6 +392,12 @@ func source_loop(h *teleportSource) {
 								default:
 									h.frame.format = C.VIDEO_FORMAT_I420
 								}
+
+								if i.image_header.ColorRangeMin == [3]float32{0, 0, 0} && i.image_header.ColorRangeMax == [3]float32{1, 1, 1} {
+									h.frame.full_range = true
+								} else {
+									h.frame.full_range = false
+								}
 							default:
 								h.images = h.images[1:]
 								continue
