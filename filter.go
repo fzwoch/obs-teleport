@@ -160,6 +160,10 @@ func filter_video(data C.uintptr_t, frame *C.struct_obs_source_frame) *C.struct_
 		copy(j.image_header.ColorMatrix[:], (unsafe.Slice((*float32)(&frame.color_matrix[0]), 16)))
 		copy(j.image_header.ColorRangeMin[:], (unsafe.Slice((*float32)(&frame.color_range_min[0]), 3)))
 		copy(j.image_header.ColorRangeMax[:], (unsafe.Slice((*float32)(&frame.color_range_max[0]), 3)))
+		if frame.full_range {
+			j.image_header.ColorRangeMin = [3]float32{0, 0, 0}
+			j.image_header.ColorRangeMax = [3]float32{1, 1, 1}
+		}
 	default:
 		C.video_format_get_parameters(C.VIDEO_CS_SRGB, C.VIDEO_RANGE_FULL, (*C.float)(unsafe.Pointer(&j.image_header.ColorMatrix[0])), (*C.float)(unsafe.Pointer(&j.image_header.ColorRangeMin[0])), (*C.float)(unsafe.Pointer(&j.image_header.ColorRangeMax[0])))
 	}
