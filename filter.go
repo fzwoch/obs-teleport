@@ -22,6 +22,7 @@ package main
 
 //
 // #include <obs-module.h>
+// #include <util/dstr.h>
 //
 // bool filter_apply_clicked(obs_properties_t *props, obs_property_t *property, uintptr_t data);
 //
@@ -49,6 +50,7 @@ type teleportFilter struct {
 	filter    *C.obs_source_t
 	queueLock sync.Mutex
 	data      []*queueInfo
+	audioOnly bool
 }
 
 //export filter_get_name
@@ -67,6 +69,10 @@ func filter_create(settings *C.obs_data_t, source *C.obs_source_t) C.uintptr_t {
 		conns:  make(map[net.Conn]interface{}),
 		done:   make(chan interface{}),
 		filter: source,
+	}
+
+	if C.astrcmpi(C.obs_source_get_id(source), filter_audio_str) == 0 {
+		h.audioOnly = true
 	}
 
 	h.Add(1)
