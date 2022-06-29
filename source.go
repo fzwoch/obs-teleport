@@ -332,10 +332,6 @@ func source_loop(h *teleportSource) {
 
 				switch header.Type {
 				case [4]byte{'J', 'P', 'E', 'G'}:
-					if !C.obs_source_showing(h.source) {
-						continue
-					}
-
 					info := &imageInfo{
 						timestamp:    header.Timestamp,
 						b:            b,
@@ -357,7 +353,18 @@ func source_loop(h *teleportSource) {
 
 						reader := bytes.NewReader(info.b)
 
-						img, _ := jpeg.Decode(reader, &jpeg.DecoderOptions{})
+						var img image.Image
+						if !C.obs_source_showing(h.source) {
+							config, _ := jpeg.DecodeConfig(reader)
+							rect := image.Rectangle{
+								Max: image.Point{
+									X: config.Width,
+									Y: config.Height,
+								},
+							}
+							img = image.NewYCbCr(rect, image.YCbCrSubsampleRatio420)
+						}
+						img, _ = jpeg.Decode(reader, &jpeg.DecoderOptions{})
 
 						h.imageLock.Lock()
 						defer h.imageLock.Unlock()
