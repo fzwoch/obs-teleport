@@ -559,4 +559,20 @@ func createJpegBuffer(img image.Image, timestamp uint64, image_header image_head
 	return append(head.Bytes(), p.Bytes()...)
 }
 
+func createDummyJpegBuffer(timestamp uint64) []byte {
+	head := bytes.Buffer{}
+
+	binary.Write(&head, binary.LittleEndian, &header{
+		Type:      [4]byte{'J', 'P', 'E', 'G'},
+		Timestamp: timestamp,
+		Size:      0,
+	})
+
+	var image_header image_header
+
+	binary.Write(&head, binary.LittleEndian, &image_header)
+
+	return head.Bytes()
+}
+
 func main() {}
