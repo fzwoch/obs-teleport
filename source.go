@@ -363,8 +363,9 @@ func source_loop(h *teleportSource) {
 								},
 							}
 							img = image.NewYCbCr(rect, image.YCbCrSubsampleRatio420)
+						} else {
+							img, _ = jpeg.Decode(reader, &jpeg.DecoderOptions{})
 						}
-						img, _ = jpeg.Decode(reader, &jpeg.DecoderOptions{})
 
 						h.imageLock.Lock()
 						defer h.imageLock.Unlock()
