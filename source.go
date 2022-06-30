@@ -339,7 +339,7 @@ func source_loop(h *teleportSource) {
 					}
 
 					h.imageLock.Lock()
-					if len(h.images) > 20 {
+					if len(h.images) > 0 && time.Duration(h.images[len(h.images)-1].timestamp-h.images[0].timestamp) > time.Nanosecond {
 						h.imageLock.Unlock()
 						continue
 					}

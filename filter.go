@@ -36,6 +36,7 @@ import (
 	"runtime/cgo"
 	"strconv"
 	"sync"
+	"time"
 	"unsafe"
 
 	"github.com/schollz/peerdiscovery"
@@ -183,7 +184,7 @@ func filter_video(data C.uintptr_t, frame *C.struct_obs_source_frame) *C.struct_
 	}
 
 	h.queueLock.Lock()
-	if len(h.data) > 20 {
+	if len(h.data) > 0 && time.Duration(h.data[len(h.data)-1].timestamp-h.data[0].timestamp) > time.Nanosecond {
 		h.queueLock.Unlock()
 		return frame
 	}
