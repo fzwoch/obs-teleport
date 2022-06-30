@@ -153,7 +153,7 @@ func output_raw_video(data C.uintptr_t, frame *C.struct_video_data) {
 	C.video_format_get_parameters(info.colorspace, info._range, (*C.float)(unsafe.Pointer(&j.image_header.ColorMatrix[0])), (*C.float)(unsafe.Pointer(&j.image_header.ColorRangeMin[0])), (*C.float)(unsafe.Pointer(&j.image_header.ColorRangeMax[0])))
 
 	h.queueLock.Lock()
-	if len(h.data) > 0 && time.Duration(h.data[len(h.data)-1].timestamp-h.data[0].timestamp) > time.Nanosecond {
+	if len(h.data) > 0 && time.Duration(h.data[len(h.data)-1].timestamp-h.data[0].timestamp) > time.Second {
 		h.droppedFrames++
 		h.queueLock.Unlock()
 		return
