@@ -25,6 +25,12 @@ package main
 //
 // extern bool refresh_list(obs_properties_t *props, obs_property_t *property, uintptr_t data);
 //
+// static void bloga(uint64_t string) {
+//   blog(LOG_INFO, "audio: %llu", string);
+// }
+// static void blogv(uint64_t string) {
+//   blog(LOG_INFO, "video: %llu", string);
+// }
 import "C"
 import (
 	"bytes"
@@ -470,6 +476,7 @@ func source_loop(h *teleportSource) {
 							copy(unsafe.Slice((*float32)(&h.frame.color_range_min[0]), 3), i.image_header.ColorRangeMin[:])
 							copy(unsafe.Slice((*float32)(&h.frame.color_range_max[0]), 3), i.image_header.ColorRangeMax[:])
 
+							C.blogv(h.frame.timestamp)
 							C.obs_source_output_video(h.source, h.frame)
 
 							h.frame.data[0] = nil
