@@ -44,13 +44,15 @@ import (
 type teleportFilter struct {
 	sync.Mutex
 	sync.WaitGroup
-	conns     map[net.Conn]interface{}
-	connsLock sync.Mutex
-	done      chan interface{}
-	filter    *C.obs_source_t
-	queueLock sync.Mutex
-	data      []*queueInfo
-	audioOnly bool
+	conns       map[net.Conn]interface{}
+	connsLock   sync.Mutex
+	done        chan interface{}
+	filter      *C.obs_source_t
+	queueLock   sync.Mutex
+	data        []*queueInfo
+	audioOnly   bool
+	offsetVideo C.ulong
+	offsetAudio C.ulong
 }
 
 //export filter_get_name
@@ -66,9 +68,11 @@ func filter_audio_get_name(type_data C.uintptr_t) *C.char {
 //export filter_create
 func filter_create(settings *C.obs_data_t, source *C.obs_source_t) C.uintptr_t {
 	h := &teleportFilter{
-		conns:  make(map[net.Conn]interface{}),
-		done:   make(chan interface{}),
-		filter: source,
+		conns:       make(map[net.Conn]interface{}),
+		done:        make(chan interface{}),
+		filter:      source,
+		offsetVideo: math.MaxUint64,
+		offsetAudio: math.MaxUint64,
 	}
 
 	if C.astrcmpi(C.obs_source_get_id(source), filter_audio_str) == 0 {
@@ -140,6 +144,11 @@ func filter_update(data C.uintptr_t, settings *C.obs_data_t) {
 //export filter_video
 func filter_video(data C.uintptr_t, frame *C.struct_obs_source_frame) *C.struct_obs_source_frame {
 	h := cgo.Handle(data).Value().(*teleportFilter)
+
+	if h.offsetVideo == math.MaxUint64 {
+		h.offsetVideo = frame.timestamp
+	}
+	frame.timestamp -= h.offsetVideo
 
 	h.Lock()
 	if len(h.conns) == 0 {
@@ -223,6 +232,11 @@ func filter_video(data C.uintptr_t, frame *C.struct_obs_source_frame) *C.struct_
 //export filter_audio
 func filter_audio(data C.uintptr_t, frames *C.struct_obs_audio_data) *C.struct_obs_audio_data {
 	h := cgo.Handle(data).Value().(*teleportFilter)
+
+	if h.offsetVideo == math.MaxUint64 {
+		h.offsetVideo = frames.timestamp
+	}
+	frames.timestamp -= h.offsetVideo
 
 	h.Lock()
 	if len(h.conns) == 0 {

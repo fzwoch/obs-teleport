@@ -27,6 +27,7 @@ import "C"
 import (
 	"encoding/json"
 	"image"
+	"math"
 	"net"
 	"os"
 	"runtime/cgo"
@@ -54,6 +55,8 @@ type teleportOutput struct {
 	queueLock     sync.Mutex
 	data          []*queueInfo
 	droppedFrames int
+	offsetVideo   C.ulong
+	offsetAudio   C.ulong
 }
 
 //export output_get_name
@@ -64,8 +67,10 @@ func output_get_name(type_data C.uintptr_t) *C.char {
 //export output_create
 func output_create(settings *C.obs_data_t, output *C.obs_output_t) C.uintptr_t {
 	h := &teleportOutput{
-		conns:  make(map[net.Conn]interface{}),
-		output: output,
+		conns:       make(map[net.Conn]interface{}),
+		output:      output,
+		offsetVideo: math.MaxUint64,
+		offsetAudio: math.MaxUint64,
 	}
 
 	return C.uintptr_t(cgo.NewHandle(h))
@@ -116,6 +121,11 @@ func output_stop(data C.uintptr_t, ts C.uint64_t) {
 //export output_raw_video
 func output_raw_video(data C.uintptr_t, frame *C.struct_video_data) {
 	h := cgo.Handle(data).Value().(*teleportOutput)
+
+	if h.offsetVideo == math.MaxUint64 {
+		h.offsetVideo = frame.timestamp
+	}
+	frame.timestamp -= h.offsetVideo
 
 	h.Lock()
 	if len(h.conns) == 0 {
@@ -190,6 +200,11 @@ func output_raw_video(data C.uintptr_t, frame *C.struct_video_data) {
 //export output_raw_audio
 func output_raw_audio(data C.uintptr_t, frames *C.struct_audio_data) {
 	h := cgo.Handle(data).Value().(*teleportOutput)
+
+	if h.offsetAudio == math.MaxUint64 {
+		h.offsetAudio = frames.timestamp
+	}
+	frames.timestamp -= h.offsetAudio
 
 	h.Lock()
 	if len(h.conns) == 0 {
