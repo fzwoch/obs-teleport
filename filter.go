@@ -251,7 +251,7 @@ func filter_audio(data C.uintptr_t, frames *C.struct_obs_audio_data) *C.struct_o
 	buffer := createAudioBuffer(info, uint64(frames.timestamp-h.offsetAudio), frames)
 
 	if h.audioOnly {
-		buffer = append(buffer, createDummyJpegBuffer(uint64(frames.timestamp))...)
+		buffer = append(buffer, createDummyJpegBuffer(uint64(frames.timestamp-h.offsetAudio))...)
 	}
 
 	h.Lock()
