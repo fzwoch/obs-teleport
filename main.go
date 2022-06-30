@@ -435,7 +435,7 @@ func createImage(w C.uint32_t, h C.uint32_t, format C.enum_video_format, data [C
 	return
 }
 
-func createAudioBuffer(info *C.struct_audio_output_info, frames *C.struct_obs_audio_data) (buf []byte) {
+func createAudioBuffer(info *C.struct_audio_output_info, timestamp uint64, frames *C.struct_obs_audio_data) (buf []byte) {
 	var (
 		bytesPerSample int
 		format         C.enum_video_format
@@ -470,7 +470,7 @@ func createAudioBuffer(info *C.struct_audio_output_info, frames *C.struct_obs_au
 
 	binary.Write(&h, binary.LittleEndian, &header{
 		Type:      [4]byte{'W', 'A', 'V', 'E'},
-		Timestamp: uint64(frames.timestamp),
+		Timestamp: timestamp,
 		Size:      int32(size),
 	})
 

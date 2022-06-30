@@ -148,7 +148,6 @@ func filter_video(data C.uintptr_t, frame *C.struct_obs_source_frame) *C.struct_
 	if h.offsetVideo == math.MaxUint64 {
 		h.offsetVideo = frame.timestamp
 	}
-	frame.timestamp -= h.offsetVideo
 
 	h.Lock()
 	if len(h.conns) == 0 {
@@ -167,7 +166,7 @@ func filter_video(data C.uintptr_t, frame *C.struct_obs_source_frame) *C.struct_
 	}
 
 	j := &queueInfo{
-		timestamp: uint64(frame.timestamp),
+		timestamp: uint64(frame.timestamp - h.offsetVideo),
 	}
 
 	switch img.(type) {
@@ -236,7 +235,6 @@ func filter_audio(data C.uintptr_t, frames *C.struct_obs_audio_data) *C.struct_o
 	if h.offsetVideo == math.MaxUint64 {
 		h.offsetVideo = frames.timestamp
 	}
-	frames.timestamp -= h.offsetVideo
 
 	h.Lock()
 	if len(h.conns) == 0 {
@@ -249,7 +247,7 @@ func filter_audio(data C.uintptr_t, frames *C.struct_obs_audio_data) *C.struct_o
 	audio := C.obs_get_audio()
 	info := C.audio_output_get_info(audio)
 
-	buffer := createAudioBuffer(info, frames)
+	buffer := createAudioBuffer(info, uint64(frames.timestamp-h.offsetAudio), frames)
 
 	if h.audioOnly {
 		buffer = append(buffer, createDummyJpegBuffer(uint64(frames.timestamp))...)

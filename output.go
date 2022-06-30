@@ -125,7 +125,6 @@ func output_raw_video(data C.uintptr_t, frame *C.struct_video_data) {
 	if h.offsetVideo == math.MaxUint64 {
 		h.offsetVideo = frame.timestamp
 	}
-	frame.timestamp -= h.offsetVideo
 
 	h.Lock()
 	if len(h.conns) == 0 {
@@ -147,7 +146,7 @@ func output_raw_video(data C.uintptr_t, frame *C.struct_video_data) {
 	}
 
 	j := &queueInfo{
-		timestamp: uint64(frame.timestamp),
+		timestamp: uint64(frame.timestamp - h.offsetVideo),
 	}
 
 	C.video_format_get_parameters(info.colorspace, info._range, (*C.float)(unsafe.Pointer(&j.image_header.ColorMatrix[0])), (*C.float)(unsafe.Pointer(&j.image_header.ColorRangeMin[0])), (*C.float)(unsafe.Pointer(&j.image_header.ColorRangeMax[0])))
@@ -204,7 +203,6 @@ func output_raw_audio(data C.uintptr_t, frames *C.struct_audio_data) {
 	if h.offsetAudio == math.MaxUint64 {
 		h.offsetAudio = frames.timestamp
 	}
-	frames.timestamp -= h.offsetAudio
 
 	h.Lock()
 	if len(h.conns) == 0 {
@@ -217,12 +215,11 @@ func output_raw_audio(data C.uintptr_t, frames *C.struct_audio_data) {
 	info := C.audio_output_get_info(audio)
 
 	f := &C.struct_obs_audio_data{
-		frames:    frames.frames,
-		timestamp: frames.timestamp,
-		data:      frames.data,
+		frames: frames.frames,
+		data:   frames.data,
 	}
 
-	buffer := createAudioBuffer(info, f)
+	buffer := createAudioBuffer(info, uint64(frames.timestamp-h.offsetAudio), f)
 
 	h.Lock()
 	defer h.Unlock()
