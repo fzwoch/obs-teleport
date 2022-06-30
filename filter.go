@@ -52,8 +52,8 @@ type teleportFilter struct {
 	queueLock   sync.Mutex
 	data        []*queueInfo
 	audioOnly   bool
-	offsetVideo C.ulong
-	offsetAudio C.ulong
+	offsetVideo C.uint64_t
+	offsetAudio C.uint64_t
 }
 
 //export filter_get_name

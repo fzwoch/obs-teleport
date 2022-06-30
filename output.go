@@ -56,8 +56,8 @@ type teleportOutput struct {
 	queueLock     sync.Mutex
 	data          []*queueInfo
 	droppedFrames int
-	offsetVideo   C.ulong
-	offsetAudio   C.ulong
+	offsetVideo   C.uint64_t
+	offsetAudio   C.uint64_t
 }
 
 //export output_get_name
