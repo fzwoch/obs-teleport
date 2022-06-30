@@ -351,9 +351,9 @@ func source_loop(h *teleportSource) {
 					}
 
 					h.imageLock.Lock()
+
 					if len(h.images) > 0 && time.Duration(h.images[len(h.images)-1].timestamp-h.images[0].timestamp) > time.Second {
-						h.imageLock.Unlock()
-						continue
+						info.b = []byte{}
 					}
 
 					h.images = append(h.images, info)
@@ -366,15 +366,21 @@ func source_loop(h *teleportSource) {
 						reader := bytes.NewReader(info.b)
 
 						var img image.Image
+
 						if !C.obs_source_showing(h.source) {
 							config, _ := jpeg.DecodeConfig(reader)
-							rect := image.Rectangle{
-								Max: image.Point{
-									X: config.Width,
-									Y: config.Height,
-								},
+
+							if len(info.b) == 0 {
+								img = nil
+							} else {
+								rect := image.Rectangle{
+									Max: image.Point{
+										X: config.Width,
+										Y: config.Height,
+									},
+								}
+								img = image.NewYCbCr(rect, image.YCbCrSubsampleRatio420)
 							}
-							img = image.NewYCbCr(rect, image.YCbCrSubsampleRatio420)
 						} else {
 							img, _ = jpeg.Decode(reader, &jpeg.DecoderOptions{})
 						}
