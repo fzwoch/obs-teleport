@@ -539,6 +539,19 @@ func createAudioBuffer(info *C.struct_audio_output_info, timestamp uint64, frame
 	return
 }
 
+func createDummyAudioBuffer(timestamp uint64) []byte {
+	p := bytes.Buffer{}
+
+	binary.Write(&p, binary.LittleEndian, &header{
+		Type:      [4]byte{'W', 'A', 'V', 'E'},
+		Timestamp: timestamp,
+	})
+
+	binary.Write(&p, binary.LittleEndian, &wave_header{})
+
+	return p.Bytes()
+}
+
 func createJpegBuffer(img image.Image, timestamp uint64, image_header image_header, quality int) []byte {
 	p := bytes.Buffer{}
 

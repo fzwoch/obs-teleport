@@ -52,6 +52,7 @@ type teleportFilter struct {
 	queueLock   sync.Mutex
 	data        []*queueInfo
 	audioOnly   bool
+	videoOnly   bool
 	offsetVideo C.uint64_t
 	offsetAudio C.uint64_t
 }
@@ -197,6 +198,10 @@ func filter_video(data C.uintptr_t, frame *C.struct_obs_source_frame) *C.struct_
 		defer h.Done()
 
 		j.b = createJpegBuffer(img, j.timestamp, j.image_header, quality)
+
+		if h.videoOnly {
+			j.b = append(j.b, createDummyAudioBuffer(j.timestamp)...)
+		}
 
 		h.queueLock.Lock()
 		defer h.queueLock.Unlock()
