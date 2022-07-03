@@ -429,6 +429,10 @@ func source_loop(h *teleportSource) {
 						}
 					}(info)
 				case [4]byte{'W', 'A', 'V', 'E'}:
+					if len(b) == 0 {
+						continue
+					}
+
 					h.audio.timestamp = C.uint64_t(header.Timestamp)
 					h.audio.samples_per_sec = C.uint(wave_header.SampleRate)
 					h.audio.speakers = uint32(wave_header.Speakers)

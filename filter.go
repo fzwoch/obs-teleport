@@ -62,6 +62,11 @@ func filter_get_name(type_data C.uintptr_t) *C.char {
 	return frontend_str
 }
 
+//export filter_video_get_name
+func filter_video_get_name(type_data C.uintptr_t) *C.char {
+	return frontend_video_str
+}
+
 //export filter_audio_get_name
 func filter_audio_get_name(type_data C.uintptr_t) *C.char {
 	return frontend_audio_str
@@ -79,6 +84,8 @@ func filter_create(settings *C.obs_data_t, source *C.obs_source_t) C.uintptr_t {
 
 	if C.astrcmpi(C.obs_source_get_id(source), filter_audio_str) == 0 {
 		h.audioOnly = true
+	} else if C.astrcmpi(C.obs_source_get_id(source), filter_video_str) == 0 {
+		h.videoOnly = true
 	}
 
 	h.Add(1)

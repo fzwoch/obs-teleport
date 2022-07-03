@@ -27,6 +27,7 @@ package main
 // typedef char* (*get_name_t)(uintptr_t type_data);
 // extern char* source_get_name(uintptr_t type_data);
 // extern char* filter_get_name(uintptr_t type_data);
+// extern char* filter_video_get_name(uintptr_t type_data);
 // extern char* filter_audio_get_name(uintptr_t type_data);
 // extern char* output_get_name(uintptr_t type_data);
 // extern char* dummy_get_name(uintptr_t type_data);
@@ -122,9 +123,11 @@ func obs_module_ver() C.uint32_t {
 var (
 	source_str         = C.CString("teleport-source")
 	output_str         = C.CString("teleport-output")
+	filter_str         = C.CString("teleport-filter")
 	filter_video_str   = C.CString("teleport-video-filter")
 	filter_audio_str   = C.CString("teleport-audio-filter")
 	frontend_str       = C.CString("Teleport")
+	frontend_video_str = C.CString("Teleport (Video)")
 	frontend_audio_str = C.CString("Teleport (Audio)")
 	dummy_str          = C.CString("teleport-dummy")
 
@@ -151,7 +154,7 @@ func obs_module_load() C.bool {
 	}, C.sizeof_struct_obs_source_info)
 
 	C.obs_register_source_s(&C.struct_obs_source_info{
-		id:             filter_video_str,
+		id:             filter_str,
 		_type:          C.OBS_SOURCE_TYPE_FILTER,
 		output_flags:   C.OBS_SOURCE_ASYNC_VIDEO | C.OBS_SOURCE_DO_NOT_DUPLICATE,
 		get_name:       C.get_name_t(unsafe.Pointer(C.filter_get_name)),
@@ -162,6 +165,19 @@ func obs_module_load() C.bool {
 		update:         C.update_t(unsafe.Pointer(C.filter_update)),
 		filter_video:   C.filter_video_t(unsafe.Pointer(C.filter_video)),
 		filter_audio:   C.filter_audio_t(unsafe.Pointer(C.filter_audio)),
+	}, C.sizeof_struct_obs_source_info)
+
+	C.obs_register_source_s(&C.struct_obs_source_info{
+		id:             filter_video_str,
+		_type:          C.OBS_SOURCE_TYPE_FILTER,
+		output_flags:   C.OBS_SOURCE_ASYNC_VIDEO | C.OBS_SOURCE_DO_NOT_DUPLICATE,
+		get_name:       C.get_name_t(unsafe.Pointer(C.filter_video_get_name)),
+		create:         C.source_create_t(unsafe.Pointer(C.filter_create)),
+		destroy:        C.destroy_t(unsafe.Pointer(C.filter_destroy)),
+		get_properties: C.get_properties_t(unsafe.Pointer(C.filter_get_properties)),
+		get_defaults:   C.get_defaults_t(unsafe.Pointer(C.filter_get_defaults)),
+		update:         C.update_t(unsafe.Pointer(C.filter_update)),
+		filter_video:   C.filter_video_t(unsafe.Pointer(C.filter_video)),
 	}, C.sizeof_struct_obs_source_info)
 
 	C.obs_register_source_s(&C.struct_obs_source_info{
