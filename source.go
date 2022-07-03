@@ -370,9 +370,7 @@ func source_loop(h *teleportSource) {
 						if !C.obs_source_showing(h.source) {
 							config, _ := jpeg.DecodeConfig(reader)
 
-							if len(info.b) == 0 {
-								img = nil
-							} else {
+							if len(info.b) > 0 {
 								rect := image.Rectangle{
 									Max: image.Point{
 										X: config.Width,
