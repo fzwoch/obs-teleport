@@ -37,6 +37,7 @@ import (
 	"net"
 	"os"
 	"runtime/cgo"
+	"sort"
 	"strconv"
 	"sync"
 	"time"
@@ -132,8 +133,17 @@ func refresh_list(props *C.obs_properties_t, property *C.obs_property_t, data C.
 	}
 
 	h.Lock()
-	for key, service := range h.services {
-		key := C.CString(key)
+	keys := make([]string, 0, len(h.services))
+
+	for k := range h.services {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	for _, k := range keys {
+		service := h.services[k]
+
+		key := C.CString(k)
 		val := C.CString(fmt.Sprintf("%s / %s:%d", service.name, service.address, service.port))
 
 		C.obs_property_list_add_string(prop, val, key)
