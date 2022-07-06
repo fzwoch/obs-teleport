@@ -60,6 +60,8 @@ type imageInfo struct {
 	image        image.Image
 	done         bool
 	image_header image_header
+	is_audio     bool
+	wave_header  wave_header
 }
 
 type teleportSource struct {
@@ -349,9 +351,9 @@ func source_loop(h *teleportSource) {
 					}
 
 					h.imageLock.Lock()
+
 					if len(h.images) > 0 && time.Duration(h.images[len(h.images)-1].timestamp-h.images[0].timestamp) > time.Second {
-						h.imageLock.Unlock()
-						continue
+						info.b = []byte{}
 					}
 
 					h.images = append(h.images, info)
@@ -364,15 +366,19 @@ func source_loop(h *teleportSource) {
 						reader := bytes.NewReader(info.b)
 
 						var img image.Image
+
 						if !C.obs_source_showing(h.source) {
 							config, _ := jpeg.DecodeConfig(reader)
-							rect := image.Rectangle{
-								Max: image.Point{
-									X: config.Width,
-									Y: config.Height,
-								},
+
+							if len(info.b) > 0 {
+								rect := image.Rectangle{
+									Max: image.Point{
+										X: config.Width,
+										Y: config.Height,
+									},
+								}
+								img = image.NewYCbCr(rect, image.YCbCrSubsampleRatio420)
 							}
-							img = image.NewYCbCr(rect, image.YCbCrSubsampleRatio420)
 						} else {
 							img, _ = jpeg.Decode(reader, &jpeg.DecoderOptions{})
 						}
@@ -383,10 +389,43 @@ func source_loop(h *teleportSource) {
 						info.image = img
 						info.done = true
 
+						sort.Slice(h.images, func(i, j int) bool {
+							return h.images[i].timestamp < h.images[j].timestamp
+						})
+
 						for len(h.images) > 0 && h.images[0].done {
 							i := h.images[0]
 
 							if i == nil {
+								h.images = h.images[1:]
+								continue
+							}
+
+							hasAudioAndVideo := false
+							for _, x := range h.images[1:] {
+								if x.is_audio != i.is_audio {
+									hasAudioAndVideo = true
+									break
+								}
+							}
+							if !hasAudioAndVideo {
+								return
+							}
+
+							if i.is_audio {
+								if len(i.b) > 0 {
+									h.audio.timestamp = C.uint64_t(i.timestamp)
+									h.audio.samples_per_sec = C.uint(i.wave_header.SampleRate)
+									h.audio.speakers = uint32(i.wave_header.Speakers)
+									h.audio.format = uint32(i.wave_header.Format)
+									h.audio.frames = C.uint(i.wave_header.Frames)
+									h.audio.data[0] = (*C.uint8_t)(unsafe.Pointer(&i.b[0]))
+
+									C.obs_source_output_audio(h.source, h.audio)
+
+									h.audio.data[0] = nil
+								}
+
 								h.images = h.images[1:]
 								continue
 							}
@@ -439,20 +478,17 @@ func source_loop(h *teleportSource) {
 						}
 					}(info)
 				case [4]byte{'W', 'A', 'V', 'E'}:
-					if len(b) == 0 {
-						continue
+					j := &imageInfo{
+						timestamp:   header.Timestamp,
+						is_audio:    true,
+						wave_header: wave_header,
+						b:           b,
+						done:        true,
 					}
 
-					h.audio.timestamp = C.uint64_t(header.Timestamp)
-					h.audio.samples_per_sec = C.uint(wave_header.SampleRate)
-					h.audio.speakers = uint32(wave_header.Speakers)
-					h.audio.format = uint32(wave_header.Format)
-					h.audio.frames = C.uint(wave_header.Frames)
-					h.audio.data[0] = (*C.uint8_t)(unsafe.Pointer(&b[0]))
-
-					C.obs_source_output_audio(h.source, h.audio)
-
-					h.audio.data[0] = nil
+					h.imageLock.Lock()
+					h.images = append(h.images, j)
+					h.imageLock.Unlock()
 				}
 			}
 		}
