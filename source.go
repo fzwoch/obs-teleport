@@ -252,6 +252,10 @@ func source_loop(h *teleportSource) {
 		connMutex.Unlock()
 	}()
 
+	defer func() {
+		h.images = nil
+	}()
+
 	h.Add(1)
 	go func() {
 		defer h.Done()
