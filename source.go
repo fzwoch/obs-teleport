@@ -74,6 +74,7 @@ type teleportSource struct {
 	images    []*imageInfo
 	frame     *C.struct_obs_source_frame
 	audio     *C.struct_obs_source_audio
+	isStart   bool
 }
 
 var (
@@ -196,6 +197,9 @@ func source_activate(data C.uintptr_t) {
 func source_loop(h *teleportSource) {
 	defer h.Done()
 
+	h.isStart = true
+	h.images = nil
+
 	discover := make(chan struct{})
 	defer close(discover)
 
@@ -250,10 +254,6 @@ func source_loop(h *teleportSource) {
 			c.Close()
 		}
 		connMutex.Unlock()
-	}()
-
-	defer func() {
-		h.images = nil
 	}()
 
 	h.Add(1)
@@ -414,6 +414,16 @@ func source_loop(h *teleportSource) {
 							}
 							if !hasAudioAndVideo {
 								return
+							}
+
+							if h.isStart {
+								for i := len(h.images) - 1; i >= 0; i-- {
+									if h.images[i].is_audio != h.images[len(h.images)-1].is_audio {
+										h.images = h.images[i:]
+										break
+									}
+								}
+								h.isStart = false
 							}
 
 							if i.is_audio {
