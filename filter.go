@@ -146,6 +146,9 @@ func filter_update(data C.uintptr_t, settings *C.obs_data_t) {
 	h.done <- nil
 	h.Wait()
 
+	h.offsetVideo = math.MaxUint64
+	h.offsetAudio = math.MaxUint64
+
 	h.Add(1)
 	go filter_loop(h)
 }

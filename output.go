@@ -68,10 +68,8 @@ func output_get_name(type_data C.uintptr_t) *C.char {
 //export output_create
 func output_create(settings *C.obs_data_t, output *C.obs_output_t) C.uintptr_t {
 	h := &teleportOutput{
-		conns:       make(map[net.Conn]interface{}),
-		output:      output,
-		offsetVideo: math.MaxUint64,
-		offsetAudio: math.MaxUint64,
+		conns:  make(map[net.Conn]interface{}),
+		output: output,
 	}
 
 	return C.uintptr_t(cgo.NewHandle(h))
@@ -92,6 +90,8 @@ func output_start(data C.uintptr_t) C.bool {
 
 	h.done = make(chan interface{})
 	h.droppedFrames = 0
+	h.offsetVideo = math.MaxUint64
+	h.offsetAudio = math.MaxUint64
 
 	h.Add(1)
 	go output_loop(h)
