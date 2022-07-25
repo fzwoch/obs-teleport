@@ -408,7 +408,7 @@ func source_loop(h *teleportSource) {
 						for len(h.images) > 0 && h.images[0].done {
 							i := h.images[0]
 
-							if i == nil {
+							if i.image == nil {
 								h.images = h.images[1:]
 								continue
 							}
