@@ -408,11 +408,6 @@ func source_loop(h *teleportSource) {
 						for len(h.images) > 0 && h.images[0].done {
 							i := h.images[0]
 
-							if i.image == nil {
-								h.images = h.images[1:]
-								continue
-							}
-
 							hasAudioAndVideo := false
 							for _, x := range h.images[1:] {
 								if x.is_audio != i.is_audio {
