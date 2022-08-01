@@ -196,8 +196,7 @@ func filter_video(data C.uintptr_t, frame *C.struct_obs_source_frame) *C.struct_
 
 	h.queueLock.Lock()
 	if len(h.data) > 0 && time.Duration(h.data[len(h.data)-1].timestamp-h.data[0].timestamp) > time.Second {
-		h.queueLock.Unlock()
-		return frame
+		j.b = createDummyJpegBuffer(j.timestamp)
 	}
 
 	h.data = append(h.data, j)
@@ -207,7 +206,9 @@ func filter_video(data C.uintptr_t, frame *C.struct_obs_source_frame) *C.struct_
 	go func(j *queueInfo, img image.Image) {
 		defer h.Done()
 
-		j.b = createJpegBuffer(img, j.timestamp, j.image_header, quality)
+		if j.b == nil {
+			j.b = createJpegBuffer(img, j.timestamp, j.image_header, quality)
+		}
 
 		if h.videoOnly {
 			j.b = append(j.b, createDummyAudioBuffer(j.timestamp)...)
