@@ -363,7 +363,6 @@ func source_loop(h *teleportSource) {
 					}
 
 					h.imageLock.Lock()
-
 					if len(h.images) > 0 && time.Duration(h.images[len(h.images)-1].timestamp-h.images[0].timestamp) > time.Second {
 						info.b = []byte{}
 					}
@@ -505,6 +504,10 @@ func source_loop(h *teleportSource) {
 
 					h.imageLock.Lock()
 					h.images = append(h.images, j)
+
+					sort.Slice(h.images, func(i, j int) bool {
+						return h.images[i].timestamp < h.images[j].timestamp
+					})
 					h.imageLock.Unlock()
 				}
 			}
