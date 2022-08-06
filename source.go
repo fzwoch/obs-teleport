@@ -198,9 +198,6 @@ func source_activate(data C.uintptr_t) {
 func source_loop(h *teleportSource) {
 	defer h.Done()
 
-	h.isStart = true
-	h.images = nil
-
 	discover := make(chan struct{})
 	defer close(discover)
 
@@ -319,6 +316,9 @@ func source_loop(h *teleportSource) {
 				}
 				continue
 			}
+
+			h.isStart = true
+			h.images = nil
 
 			for {
 				var (
