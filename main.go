@@ -87,8 +87,8 @@ package main
 //
 // extern void frontend_event_cb(enum obs_frontend_event event, uintptr_t data);
 //
-// static void blog_version(const char* string) {
-//   blog(LOG_INFO, "[obs-teleport] Version %s", string);
+// static void blog_string(const int log_level, const char* string) {
+//   blog(log_level, "[obs-teleport] %s", string);
 // }
 //
 import "C"
@@ -136,8 +136,8 @@ var (
 
 //export obs_module_load
 func obs_module_load() C.bool {
-	v := C.CString(version)
-	C.blog_version(v)
+	v := C.CString("Version " + version)
+	C.blog_string(C.LOG_INFO, v)
 	C.free(unsafe.Pointer(v))
 
 	C.obs_register_source_s(&C.struct_obs_source_info{
