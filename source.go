@@ -277,6 +277,8 @@ func source_loop(h *teleportSource) {
 			default:
 			}
 
+			C.obs_source_output_video(h.source, nil)
+
 			h.Lock()
 			service, ok := h.services[teleport]
 			h.Unlock()
@@ -306,8 +308,6 @@ func source_loop(h *teleportSource) {
 				}
 				continue
 			}
-
-			C.obs_source_output_video(h.source, nil)
 
 			h.audio.timestamp = 0
 			h.audio.samples_per_sec = 48000
