@@ -176,21 +176,21 @@ func output_raw_video(data C.uintptr_t, frame *C.struct_video_data) {
 
 		for len(h.data) > 0 && h.data[0].done {
 			h.Lock()
-			var wg sync.WaitGroup
+			h.connsLock.Lock()
+
 			for c := range h.conns {
-				wg.Add(1)
-				go func(c net.Conn) {
-					defer wg.Done()
-					_, err := c.Write(h.data[0].b)
+				go func(c net.Conn, j *queueInfo) {
+					_, err := c.Write(j.b)
 					if err != nil {
 						c.Close()
 						h.connsLock.Lock()
 						delete(h.conns, c)
 						h.connsLock.Unlock()
 					}
-				}(c)
+				}(c, h.data[0])
 			}
-			wg.Wait()
+
+			h.connsLock.Unlock()
 			h.Unlock()
 
 			h.data = h.data[1:]
@@ -226,13 +226,11 @@ func output_raw_audio(data C.uintptr_t, frames *C.struct_audio_data) {
 	h.Lock()
 	defer h.Unlock()
 
-	var wg sync.WaitGroup
-	defer wg.Wait()
+	h.connsLock.Lock()
+	defer h.connsLock.Unlock()
 
 	for c := range h.conns {
-		wg.Add(1)
-		go func(c net.Conn) {
-			defer wg.Done()
+		go func(c net.Conn, buffer []byte) {
 			_, err := c.Write(buffer)
 			if err != nil {
 				c.Close()
@@ -240,7 +238,7 @@ func output_raw_audio(data C.uintptr_t, frames *C.struct_audio_data) {
 				delete(h.conns, c)
 				h.connsLock.Unlock()
 			}
-		}(c)
+		}(c, buffer)
 	}
 }
 
