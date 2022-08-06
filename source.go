@@ -277,16 +277,6 @@ func source_loop(h *teleportSource) {
 			default:
 			}
 
-			C.obs_source_output_video(h.source, nil)
-
-			h.audio.timestamp = 0
-			h.audio.samples_per_sec = 48000
-			h.audio.speakers = 2
-			h.audio.format = C.AUDIO_FORMAT_FLOAT
-			h.audio.frames = 0
-
-			C.obs_source_output_audio(h.source, h.audio)
-
 			h.Lock()
 			service, ok := h.services[teleport]
 			h.Unlock()
@@ -316,6 +306,16 @@ func source_loop(h *teleportSource) {
 				}
 				continue
 			}
+
+			C.obs_source_output_video(h.source, nil)
+
+			h.audio.timestamp = 0
+			h.audio.samples_per_sec = 48000
+			h.audio.speakers = 2
+			h.audio.format = C.AUDIO_FORMAT_FLOAT
+			h.audio.frames = 0
+
+			C.obs_source_output_audio(h.source, h.audio)
 
 			h.isStart = true
 			h.images = nil
