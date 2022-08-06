@@ -24,6 +24,7 @@ package main
 // #include <obs-module.h>
 //
 // extern bool refresh_list(obs_properties_t *props, obs_property_t *property, uintptr_t data);
+// extern void blog_string(const int log_level, const char* string);
 //
 import "C"
 import (
@@ -363,7 +364,10 @@ func source_loop(h *teleportSource) {
 					}
 
 					h.imageLock.Lock()
-					if len(h.images) > 0 && time.Duration(h.images[len(h.images)-1].timestamp-h.images[0].timestamp) > time.Second {
+					if len(h.images) > 0 && time.Duration(h.images[len(h.images)-1].timestamp-h.images[0].timestamp) > 5*time.Second {
+						tmp := C.CString("Queue exceeded")
+						C.blog_string(C.LOG_WARNING, tmp)
+						C.free(unsafe.Pointer(tmp))
 						info.b = []byte{}
 					}
 
