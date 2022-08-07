@@ -30,7 +30,6 @@ import "C"
 import (
 	"bytes"
 	"encoding/binary"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"image"
@@ -45,7 +44,6 @@ import (
 	"unsafe"
 
 	"github.com/pixiv/go-libjpeg/jpeg"
-	"github.com/schollz/peerdiscovery"
 )
 
 type peer struct {
@@ -68,6 +66,7 @@ type imageInfo struct {
 type teleportSource struct {
 	sync.Mutex
 	sync.WaitGroup
+	Discoverer
 	done      chan interface{}
 	services  map[string]peer
 	source    *C.obs_source_t
@@ -198,40 +197,11 @@ func source_activate(data C.uintptr_t) {
 func source_loop(h *teleportSource) {
 	defer h.Done()
 
+	h.StartDiscoverer()
+	defer h.StopDiscoverer()
+
 	discover := make(chan struct{})
 	defer close(discover)
-
-	h.Add(1)
-	go func() {
-		defer h.Done()
-
-		peerdiscovery.Discover(peerdiscovery.Settings{
-			TimeLimit:        -1,
-			StopChan:         discover,
-			AllowSelf:        true,
-			DisableBroadcast: true,
-			Notify: func(d peerdiscovery.Discovered) {
-				j := struct {
-					Name string
-					Port int
-				}{}
-
-				err := json.Unmarshal(d.Payload, &j)
-				if err != nil {
-					return
-				}
-
-				h.Lock()
-				h.services[j.Name+":"+d.Address] = peer{
-					name:    j.Name,
-					address: d.Address,
-					port:    j.Port,
-					time:    time.Now().Add(5 * time.Second),
-				}
-				h.Unlock()
-			},
-		})
-	}()
 
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()

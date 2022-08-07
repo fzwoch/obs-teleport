@@ -222,25 +222,6 @@ func obs_module_load() C.bool {
 	return true
 }
 
-type header struct {
-	Type      [4]byte
-	Timestamp uint64
-	Size      int32
-}
-
-type image_header struct {
-	ColorMatrix   [16]float32
-	ColorRangeMin [3]float32
-	ColorRangeMax [3]float32
-}
-
-type wave_header struct {
-	Format     int32
-	SampleRate int32
-	Speakers   int32
-	Frames     int32
-}
-
 func createImage(w C.uint32_t, h C.uint32_t, format C.enum_video_format, data [C.MAX_AV_PLANES]*C.uint8_t) (img image.Image) {
 	width := int(w)
 	height := int(h)
@@ -551,19 +532,6 @@ func createAudioBuffer(info *C.struct_audio_output_info, timestamp uint64, frame
 	return
 }
 
-func createDummyAudioBuffer(timestamp uint64) []byte {
-	p := bytes.Buffer{}
-
-	binary.Write(&p, binary.LittleEndian, &header{
-		Type:      [4]byte{'W', 'A', 'V', 'E'},
-		Timestamp: timestamp,
-	})
-
-	binary.Write(&p, binary.LittleEndian, &wave_header{})
-
-	return p.Bytes()
-}
-
 func createJpegBuffer(img image.Image, timestamp uint64, image_header image_header, quality int) []byte {
 	p := bytes.Buffer{}
 
@@ -582,22 +550,6 @@ func createJpegBuffer(img image.Image, timestamp uint64, image_header image_head
 	binary.Write(&head, binary.LittleEndian, &image_header)
 
 	return append(head.Bytes(), p.Bytes()...)
-}
-
-func createDummyJpegBuffer(timestamp uint64) []byte {
-	head := bytes.Buffer{}
-
-	binary.Write(&head, binary.LittleEndian, &header{
-		Type:      [4]byte{'J', 'P', 'E', 'G'},
-		Timestamp: timestamp,
-		Size:      0,
-	})
-
-	var image_header image_header
-
-	binary.Write(&head, binary.LittleEndian, &image_header)
-
-	return head.Bytes()
 }
 
 func main() {}

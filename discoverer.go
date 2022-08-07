@@ -22,49 +22,52 @@ package main
 
 import (
 	"encoding/json"
-	"os"
 	"sync"
 
 	"github.com/schollz/peerdiscovery"
 )
 
-type Announcer struct {
+type Discoverer struct {
 	sync.WaitGroup
 	ch chan struct{}
 }
 
-func (a *Announcer) StartAnnouncer(name string, port int, audioAndVideo bool) {
-	a.ch = make(chan struct{})
+func (d *Discoverer) StartDiscoverer() {
+	d.ch = make(chan struct{})
 
-	a.Add(1)
+	d.Add(1)
 	go func() {
-		defer a.Done()
-
-		if name == "" {
-			var err error
-			name, err = os.Hostname()
-			if err != nil {
-				name = "(None)"
-			}
-		}
-
-		j := AnnouncePayload{
-			Name:          name,
-			Port:          port,
-			AudioAndVideo: audioAndVideo,
-		}
-
-		b, _ := json.Marshal(j)
+		defer d.Done()
 
 		peerdiscovery.Discover(peerdiscovery.Settings{
-			TimeLimit: -1,
-			StopChan:  a.ch,
-			Payload:   b,
+			TimeLimit:        -1,
+			StopChan:         d.ch,
+			AllowSelf:        true,
+			DisableBroadcast: true,
+			Notify: func(d peerdiscovery.Discovered) {
+				j := AnnouncePayload{}
+
+				err := json.Unmarshal(d.Payload, &j)
+				if err != nil {
+					return
+				}
+
+				/*			h.services[j.Name+":"+d.Address] = peer{
+							h.Lock()
+											name:    j.Name,
+											address: d.Address,
+											port:    j.Port,
+											time:    time.Now().Add(5 * time.Second),
+										}
+
+										h.Unlock()
+				*/
+			},
 		})
 	}()
 }
 
-func (a *Announcer) StopAnnouncer() {
-	close(a.ch)
-	a.Wait()
+func (d *Discoverer) StopDiscoverer() {
+	close(d.ch)
+	d.Wait()
 }

@@ -20,51 +20,16 @@
 
 package main
 
-import (
-	"encoding/json"
-	"os"
-	"sync"
-
-	"github.com/schollz/peerdiscovery"
-)
-
-type Announcer struct {
-	sync.WaitGroup
-	ch chan struct{}
+type Buffer struct {
+	Buffer         []byte
+	Timestamp      uint64
+	DoneProcessing bool
 }
 
-func (a *Announcer) StartAnnouncer(name string, port int, audioAndVideo bool) {
-	a.ch = make(chan struct{})
+func (b *Buffer) CreateJPEG() {
 
-	a.Add(1)
-	go func() {
-		defer a.Done()
-
-		if name == "" {
-			var err error
-			name, err = os.Hostname()
-			if err != nil {
-				name = "(None)"
-			}
-		}
-
-		j := AnnouncePayload{
-			Name:          name,
-			Port:          port,
-			AudioAndVideo: audioAndVideo,
-		}
-
-		b, _ := json.Marshal(j)
-
-		peerdiscovery.Discover(peerdiscovery.Settings{
-			TimeLimit: -1,
-			StopChan:  a.ch,
-			Payload:   b,
-		})
-	}()
 }
 
-func (a *Announcer) StopAnnouncer() {
-	close(a.ch)
-	a.Wait()
+func (b *Buffer) CreateWAVE() {
+
 }
