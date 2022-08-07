@@ -47,6 +47,7 @@ import (
 )
 
 type peer struct {
+	Payload AnnouncePayload
 	name    string
 	address string
 	port    int
