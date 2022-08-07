@@ -23,6 +23,7 @@ package main
 import (
 	"encoding/json"
 	"sync"
+	"time"
 
 	"github.com/schollz/peerdiscovery"
 )
@@ -32,7 +33,7 @@ type Discoverer struct {
 	ch chan struct{}
 }
 
-func (d *Discoverer) StartDiscoverer() {
+func (d *Discoverer) StartDiscoverer(services map[string]peer) {
 	d.ch = make(chan struct{})
 
 	d.Add(1)
@@ -52,16 +53,16 @@ func (d *Discoverer) StartDiscoverer() {
 					return
 				}
 
-				/*			h.services[j.Name+":"+d.Address] = peer{
-							h.Lock()
-											name:    j.Name,
-											address: d.Address,
-											port:    j.Port,
-											time:    time.Now().Add(5 * time.Second),
-										}
+				services[j.Name+":"+d.Address] = peer{
+					//		h.Lock()
+					name:    j.Name,
+					address: d.Address,
+					port:    j.Port,
+					time:    time.Now().Add(5 * time.Second),
+				}
 
-										h.Unlock()
-				*/
+				//				h.Unlock()
+
 			},
 		})
 	}()

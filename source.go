@@ -197,7 +197,7 @@ func source_activate(data C.uintptr_t) {
 func source_loop(h *teleportSource) {
 	defer h.Done()
 
-	h.StartDiscoverer()
+	h.StartDiscoverer(h.services)
 	defer h.StopDiscoverer()
 
 	discover := make(chan struct{})
