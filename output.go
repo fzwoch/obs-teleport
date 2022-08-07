@@ -25,18 +25,13 @@ package main
 //
 import "C"
 import (
-	"encoding/json"
 	"image"
 	"math"
 	"net"
-	"os"
 	"runtime/cgo"
 	"strconv"
 	"sync"
-	"time"
 	"unsafe"
-
-	"github.com/schollz/peerdiscovery"
 )
 
 type queueInfo struct {
@@ -49,6 +44,7 @@ type queueInfo struct {
 type teleportOutput struct {
 	sync.Mutex
 	sync.WaitGroup
+	Announcer
 	Sender
 	done          chan any
 	output        *C.obs_output_t
@@ -143,11 +139,6 @@ func output_raw_video(data C.uintptr_t, frame *C.struct_video_data) {
 	C.video_format_get_parameters(info.colorspace, info._range, (*C.float)(unsafe.Pointer(&j.image_header.ColorMatrix[0])), (*C.float)(unsafe.Pointer(&j.image_header.ColorRangeMin[0])), (*C.float)(unsafe.Pointer(&j.image_header.ColorRangeMax[0])))
 
 	h.Lock()
-	if len(h.data) > 0 && time.Duration(h.data[len(h.data)-1].timestamp-h.data[0].timestamp) > time.Second {
-		h.droppedFrames++
-		j.b = createDummyJpegBuffer(j.timestamp)
-	}
-
 	h.data = append(h.data, j)
 	h.Unlock()
 
@@ -165,7 +156,7 @@ func output_raw_video(data C.uintptr_t, frame *C.struct_video_data) {
 		j.done = true
 
 		for len(h.data) > 0 && h.data[0].done {
-			h.SendData(j.b)
+			h.SenderSend(j.b)
 
 			h.data = h.data[1:]
 		}
@@ -190,24 +181,15 @@ func output_raw_audio(data C.uintptr_t, frames *C.struct_audio_data) {
 
 	buffer := createAudioBuffer(info, uint64(frames.timestamp-h.offsetAudio), f)
 
-	h.SendData(buffer)
-}
-
-//export output_get_dropped_frames
-func output_get_dropped_frames(data C.uintptr_t) C.int {
-	h := cgo.Handle(data).Value().(*teleportOutput)
-
-	h.Lock()
-	defer h.Unlock()
-
-	return C.int(h.droppedFrames)
+	h.SenderSend(buffer)
 }
 
 func output_loop(h *teleportOutput) {
 	defer h.Done()
-	defer h.CloseAll()
+	defer h.SenderClose()
 
 	settings := C.obs_source_get_settings(dummy)
+	name := C.GoString(C.obs_data_get_string(settings, identifier_str))
 	listenPort := int(C.obs_data_get_int(settings, port_str))
 	C.obs_data_release(settings)
 
@@ -227,7 +209,7 @@ func output_loop(h *teleportOutput) {
 				break
 			}
 
-			h.AddConnection(c)
+			h.SenderAdd(c)
 		}
 	}()
 
@@ -236,42 +218,10 @@ func output_loop(h *teleportOutput) {
 		panic(err)
 	}
 
-	discover := make(chan struct{})
-	defer close(discover)
+	p, _ := strconv.Atoi(port)
 
-	h.Add(1)
-	go func() {
-		defer h.Done()
-
-		p, _ := strconv.Atoi(port)
-
-		settings := C.obs_source_get_settings(dummy)
-		name := C.GoString(C.obs_data_get_string(settings, identifier_str))
-		C.obs_data_release(settings)
-
-		if name == "" {
-			name, err = os.Hostname()
-			if err != nil {
-				name = "(None)"
-			}
-		}
-
-		j := struct {
-			Name string
-			Port int
-		}{
-			Name: name,
-			Port: p,
-		}
-
-		b, _ := json.Marshal(j)
-
-		peerdiscovery.Discover(peerdiscovery.Settings{
-			TimeLimit: -1,
-			StopChan:  discover,
-			Payload:   b,
-		})
-	}()
+	h.StartAnnouncer(name, p, true)
+	defer h.StopAnnouncer()
 
 	<-h.done
 }

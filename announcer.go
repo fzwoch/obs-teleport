@@ -21,57 +21,54 @@
 package main
 
 import (
-	"net"
+	"encoding/json"
+	"os"
 	"sync"
+
+	"github.com/schollz/peerdiscovery"
 )
 
-type Sender struct {
-	sync.Mutex
+type Announcer struct {
 	sync.WaitGroup
-	conns map[net.Conn]any
+	ch chan struct{}
 }
 
-func (s *Sender) SenderAdd(c net.Conn) {
-	s.Lock()
-	defer s.Unlock()
+func (a *Announcer) StartAnnouncer(name string, port int, hasAudioAndVideo bool) {
+	a.ch = make(chan struct{})
 
-	if s.conns == nil {
-		s.conns = make(map[net.Conn]any)
-	}
+	a.Add(1)
+	go func() {
+		defer a.Done()
 
-	s.conns[c] = nil
-}
-
-func (s *Sender) SenderSend(b []byte) {
-	s.Lock()
-	defer s.Unlock()
-
-	for c := range s.conns {
-		s.Add(1)
-
-		go func(c net.Conn) {
-			defer s.Done()
-
-			_, err := c.Write(b)
+		if name == "" {
+			var err error
+			name, err = os.Hostname()
 			if err != nil {
-				c.Close()
-				s.Lock()
-				delete(s.conns, c)
-				s.Unlock()
+				name = "(None)"
 			}
-		}(c)
-	}
+		}
+
+		j := struct {
+			Name          string
+			Port          int
+			AudioAndVideo bool
+		}{
+			Name:          name,
+			Port:          port,
+			AudioAndVideo: hasAudioAndVideo,
+		}
+
+		b, _ := json.Marshal(j)
+
+		peerdiscovery.Discover(peerdiscovery.Settings{
+			TimeLimit: -1,
+			StopChan:  a.ch,
+			Payload:   b,
+		})
+	}()
 }
 
-func (s *Sender) SenderClose() {
-	s.Lock()
-
-	for c := range s.conns {
-		c.Close()
-	}
-
-	s.conns = make(map[net.Conn]any)
-
-	s.Unlock()
-	s.Wait()
+func (a *Announcer) StopAnnouncer() {
+	close(a.ch)
+	a.Wait()
 }
