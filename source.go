@@ -46,12 +46,10 @@ import (
 	"github.com/pixiv/go-libjpeg/jpeg"
 )
 
-type peer struct {
+type Peer struct {
 	Payload AnnouncePayload
-	name    string
-	address string
-	port    int
-	time    time.Time
+	Address string
+	Time    time.Time
 }
 
 type imageInfo struct {
@@ -69,7 +67,7 @@ type teleportSource struct {
 	sync.WaitGroup
 	Discoverer
 	done      chan interface{}
-	services  map[string]peer
+	services  map[string]Peer
 	source    *C.obs_source_t
 	imageLock sync.Mutex
 	images    []*imageInfo
@@ -94,7 +92,7 @@ func source_get_name(type_data C.uintptr_t) *C.char {
 func source_create(settings *C.obs_data_t, source *C.obs_source_t) C.uintptr_t {
 	h := &teleportSource{
 		done:     make(chan interface{}),
-		services: map[string]peer{},
+		services: map[string]Peer{},
 		source:   source,
 		frame:    (*C.struct_obs_source_frame)(C.bzalloc(C.sizeof_struct_obs_source_frame)),
 		audio:    (*C.struct_obs_source_audio)(C.bzalloc(C.sizeof_struct_obs_source_audio)),
@@ -148,7 +146,7 @@ func refresh_list(props *C.obs_properties_t, property *C.obs_property_t, data C.
 		service := h.services[k]
 
 		key := C.CString(k)
-		val := C.CString(fmt.Sprintf("%s / %s:%d", service.name, service.address, service.port))
+		val := C.CString(fmt.Sprintf("%s / %s:%d", service.Payload.Name, service.Address, service.Payload.Port))
 
 		C.obs_property_list_add_string(prop, val, key)
 
@@ -270,7 +268,7 @@ func source_loop(h *teleportSource) {
 			if c != nil {
 				c.Close()
 			}
-			c, err = net.DialTimeout("tcp", service.address+":"+strconv.Itoa(service.port), 100*time.Millisecond)
+			c, err = net.DialTimeout("tcp", service.Address+":"+strconv.Itoa(service.Payload.Port), 100*time.Millisecond)
 			connMutex.Unlock()
 
 			if err != nil {
@@ -478,7 +476,7 @@ func source_loop(h *teleportSource) {
 		case t := <-ticker.C:
 			h.Lock()
 			for key, peer := range h.services {
-				if peer.time.Before(t) {
+				if peer.Time.Before(t) {
 					delete(h.services, key)
 				}
 			}
