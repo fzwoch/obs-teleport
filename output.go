@@ -49,11 +49,9 @@ type queueInfo struct {
 type teleportOutput struct {
 	sync.Mutex
 	sync.WaitGroup
-	conns         map[net.Conn]interface{}
-	connsLock     sync.Mutex
-	done          chan interface{}
+	Sender
+	done          chan any
 	output        *C.obs_output_t
-	queueLock     sync.Mutex
 	data          []*queueInfo
 	droppedFrames int
 	offsetVideo   C.uint64_t
@@ -68,7 +66,6 @@ func output_get_name(type_data C.uintptr_t) *C.char {
 //export output_create
 func output_create(settings *C.obs_data_t, output *C.obs_output_t) C.uintptr_t {
 	h := &teleportOutput{
-		conns:  make(map[net.Conn]interface{}),
 		output: output,
 	}
 
@@ -88,7 +85,7 @@ func output_start(data C.uintptr_t) C.bool {
 		return false
 	}
 
-	h.done = make(chan interface{})
+	h.done = make(chan any)
 	h.droppedFrames = 0
 	h.offsetVideo = math.MaxUint64
 	h.offsetAudio = math.MaxUint64
@@ -127,13 +124,6 @@ func output_raw_video(data C.uintptr_t, frame *C.struct_video_data) {
 		h.offsetVideo = frame.timestamp
 	}
 
-	h.Lock()
-	if len(h.conns) == 0 {
-		h.Unlock()
-		return
-	}
-	h.Unlock()
-
 	settings := C.obs_source_get_settings(dummy)
 	quality := int(C.obs_data_get_int(settings, quality_str))
 	C.obs_data_release(settings)
@@ -152,14 +142,14 @@ func output_raw_video(data C.uintptr_t, frame *C.struct_video_data) {
 
 	C.video_format_get_parameters(info.colorspace, info._range, (*C.float)(unsafe.Pointer(&j.image_header.ColorMatrix[0])), (*C.float)(unsafe.Pointer(&j.image_header.ColorRangeMin[0])), (*C.float)(unsafe.Pointer(&j.image_header.ColorRangeMax[0])))
 
-	h.queueLock.Lock()
+	h.Lock()
 	if len(h.data) > 0 && time.Duration(h.data[len(h.data)-1].timestamp-h.data[0].timestamp) > time.Second {
 		h.droppedFrames++
 		j.b = createDummyJpegBuffer(j.timestamp)
 	}
 
 	h.data = append(h.data, j)
-	h.queueLock.Unlock()
+	h.Unlock()
 
 	h.Add(1)
 	go func(j *queueInfo, img image.Image) {
@@ -169,29 +159,13 @@ func output_raw_video(data C.uintptr_t, frame *C.struct_video_data) {
 			j.b = createJpegBuffer(img, j.timestamp, j.image_header, quality)
 		}
 
-		h.queueLock.Lock()
-		defer h.queueLock.Unlock()
+		h.Lock()
+		defer h.Unlock()
 
 		j.done = true
 
 		for len(h.data) > 0 && h.data[0].done {
-			h.Lock()
-			h.connsLock.Lock()
-
-			for c := range h.conns {
-				go func(c net.Conn, j *queueInfo) {
-					_, err := c.Write(j.b)
-					if err != nil {
-						c.Close()
-						h.connsLock.Lock()
-						delete(h.conns, c)
-						h.connsLock.Unlock()
-					}
-				}(c, h.data[0])
-			}
-
-			h.connsLock.Unlock()
-			h.Unlock()
+			h.SendData(j.b)
 
 			h.data = h.data[1:]
 		}
@@ -206,13 +180,6 @@ func output_raw_audio(data C.uintptr_t, frames *C.struct_audio_data) {
 		h.offsetAudio = frames.timestamp
 	}
 
-	h.Lock()
-	if len(h.conns) == 0 {
-		h.Unlock()
-		return
-	}
-	h.Unlock()
-
 	audio := C.obs_output_audio(h.output)
 	info := C.audio_output_get_info(audio)
 
@@ -223,47 +190,22 @@ func output_raw_audio(data C.uintptr_t, frames *C.struct_audio_data) {
 
 	buffer := createAudioBuffer(info, uint64(frames.timestamp-h.offsetAudio), f)
 
-	h.Lock()
-	defer h.Unlock()
-
-	h.connsLock.Lock()
-	defer h.connsLock.Unlock()
-
-	for c := range h.conns {
-		go func(c net.Conn, buffer []byte) {
-			_, err := c.Write(buffer)
-			if err != nil {
-				c.Close()
-				h.connsLock.Lock()
-				delete(h.conns, c)
-				h.connsLock.Unlock()
-			}
-		}(c, buffer)
-	}
+	h.SendData(buffer)
 }
 
 //export output_get_dropped_frames
 func output_get_dropped_frames(data C.uintptr_t) C.int {
 	h := cgo.Handle(data).Value().(*teleportOutput)
 
-	h.queueLock.Lock()
-	defer h.queueLock.Unlock()
+	h.Lock()
+	defer h.Unlock()
 
 	return C.int(h.droppedFrames)
 }
 
 func output_loop(h *teleportOutput) {
 	defer h.Done()
-
-	defer func() {
-		h.Lock()
-		defer h.Unlock()
-
-		for c := range h.conns {
-			c.Close()
-			delete(h.conns, c)
-		}
-	}()
+	defer h.CloseAll()
 
 	settings := C.obs_source_get_settings(dummy)
 	listenPort := int(C.obs_data_get_int(settings, port_str))
@@ -285,9 +227,7 @@ func output_loop(h *teleportOutput) {
 				break
 			}
 
-			h.Lock()
-			h.conns[c] = nil
-			h.Unlock()
+			h.AddConnection(c)
 		}
 	}()
 
