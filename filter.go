@@ -18,9 +18,10 @@
 // along with obs-teleport. If not, see <http://www.gnu.org/licenses/>.
 //
 
+//go:build disable
+
 package main
 
-//
 // #include <obs-module.h>
 // #include <util/dstr.h>
 //
