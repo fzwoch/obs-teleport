@@ -461,7 +461,7 @@ func createAudioBuffer(info *C.struct_audio_output_info, timestamp uint64, frame
 
 	h := bytes.Buffer{}
 
-	binary.Write(&h, binary.LittleEndian, &header{
+	binary.Write(&h, binary.LittleEndian, &Header{
 		Type:      [4]byte{'W', 'A', 'V', 'E'},
 		Timestamp: timestamp,
 		Size:      int32(size),
@@ -469,7 +469,7 @@ func createAudioBuffer(info *C.struct_audio_output_info, timestamp uint64, frame
 
 	wave_h := bytes.Buffer{}
 
-	binary.Write(&wave_h, binary.LittleEndian, &wave_header{
+	binary.Write(&wave_h, binary.LittleEndian, &WaveHeader{
 		Format:     int32(format),
 		SampleRate: int32(info.samples_per_sec),
 		Speakers:   int32(info.speakers),
@@ -532,7 +532,7 @@ func createAudioBuffer(info *C.struct_audio_output_info, timestamp uint64, frame
 	return
 }
 
-func createJpegBuffer(img image.Image, timestamp uint64, image_header image_header, quality int) []byte {
+func createJpegBuffer(img image.Image, timestamp uint64, image_header ImageHeader, quality int) []byte {
 	p := bytes.Buffer{}
 
 	jpeg.Encode(&p, img, &jpeg.EncoderOptions{
@@ -541,7 +541,7 @@ func createJpegBuffer(img image.Image, timestamp uint64, image_header image_head
 
 	head := bytes.Buffer{}
 
-	binary.Write(&head, binary.LittleEndian, &header{
+	binary.Write(&head, binary.LittleEndian, &Header{
 		Type:      [4]byte{'J', 'P', 'E', 'G'},
 		Timestamp: timestamp,
 		Size:      int32(p.Len()),

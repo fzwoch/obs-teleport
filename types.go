@@ -26,19 +26,19 @@ type AnnouncePayload struct {
 	AudioAndVideo bool
 }
 
-type header struct {
+type Header struct {
 	Type      [4]byte
 	Timestamp uint64
 	Size      int32
 }
 
-type image_header struct {
+type ImageHeader struct {
 	ColorMatrix   [16]float32
 	ColorRangeMin [3]float32
 	ColorRangeMax [3]float32
 }
 
-type wave_header struct {
+type WaveHeader struct {
 	Format     int32
 	SampleRate int32
 	Speakers   int32

@@ -38,7 +38,7 @@ type queueInfo struct {
 	b            []byte
 	timestamp    uint64
 	done         bool
-	image_header image_header
+	image_header ImageHeader
 }
 
 type teleportOutput struct {
@@ -146,9 +146,7 @@ func output_raw_video(data C.uintptr_t, frame *C.struct_video_data) {
 	go func(j *queueInfo, img image.Image) {
 		defer h.Done()
 
-		if j.b == nil {
-			j.b = createJpegBuffer(img, j.timestamp, j.image_header, quality)
-		}
+		j.b = createJpegBuffer(img, j.timestamp, j.image_header, quality)
 
 		h.Lock()
 		defer h.Unlock()
@@ -157,7 +155,6 @@ func output_raw_video(data C.uintptr_t, frame *C.struct_video_data) {
 
 		for len(h.data) > 0 && h.data[0].done {
 			h.SenderSend(j.b)
-
 			h.data = h.data[1:]
 		}
 	}(j, img)

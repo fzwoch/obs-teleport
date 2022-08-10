@@ -57,9 +57,9 @@ type imageInfo struct {
 	b            []byte
 	image        image.Image
 	done         bool
-	image_header image_header
+	image_header ImageHeader
 	is_audio     bool
-	wave_header  wave_header
+	wave_header  WaveHeader
 }
 
 type teleportSource struct {
@@ -291,9 +291,9 @@ func source_loop(h *teleportSource) {
 
 			for {
 				var (
-					header       header
-					image_header image_header
-					wave_header  wave_header
+					header       Header
+					image_header ImageHeader
+					wave_header  WaveHeader
 				)
 
 				err = binary.Read(c, binary.LittleEndian, &header)
