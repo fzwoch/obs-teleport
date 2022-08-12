@@ -20,14 +20,38 @@
 
 package main
 
+import (
+	"bytes"
+	"encoding/binary"
+	"image"
+
+	"github.com/pixiv/go-libjpeg/jpeg"
+)
+
 type Buffer struct {
+	Header         Header
+	ImageHeader    ImageHeader
+	WaveHeader     WaveHeader
 	Buffer         []byte
-	Timestamp      uint64
 	DoneProcessing bool
+	Quality        int
+	Image          image.Image
 }
 
 func (b *Buffer) CreateJPEG() {
+	p := bytes.Buffer{}
 
+	jpeg.Encode(&p, b.Image, &jpeg.EncoderOptions{
+		Quality: b.Quality,
+	})
+
+	head := bytes.Buffer{}
+
+	binary.Write(&head, binary.LittleEndian, &b.Header)
+
+	//binary.Write(&head, binary.LittleEndian, &image_header)
+
+	b.Buffer = append(head.Bytes(), p.Bytes()...)
 }
 
 func (b *Buffer) CreateWAVE() {
