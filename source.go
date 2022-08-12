@@ -380,23 +380,7 @@ func source_loop(h *teleportSource) {
 
 						reader := bytes.NewReader(info.b)
 
-						var img image.Image
-
-						if !C.obs_source_showing(h.source) {
-							config, _ := jpeg.DecodeConfig(reader)
-
-							if len(info.b) > 0 {
-								rect := image.Rectangle{
-									Max: image.Point{
-										X: config.Width,
-										Y: config.Height,
-									},
-								}
-								img = image.NewYCbCr(rect, image.YCbCrSubsampleRatio420)
-							}
-						} else {
-							img, _ = jpeg.Decode(reader, &jpeg.DecoderOptions{})
-						}
+						img, _ := jpeg.Decode(reader, &jpeg.DecoderOptions{})
 
 						h.imageLock.Lock()
 						defer h.imageLock.Unlock()
