@@ -349,9 +349,7 @@ func source_loop(h *teleportSource) {
 
 						reader := bytes.NewReader(info.b)
 
-						var img image.Image
-
-						img, _ = jpeg.Decode(reader, &jpeg.DecoderOptions{})
+						img, _ := jpeg.Decode(reader, &jpeg.DecoderOptions{})
 
 						h.imageLock.Lock()
 						defer h.imageLock.Unlock()
