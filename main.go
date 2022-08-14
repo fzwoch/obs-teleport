@@ -96,7 +96,6 @@ import (
 	"image/color"
 	"unsafe"
 
-	"github.com/pixiv/go-libjpeg/jpeg"
 	"github.com/pixiv/go-libjpeg/rgb"
 )
 
@@ -530,26 +529,6 @@ func createAudioBuffer(info *C.struct_audio_output_info, timestamp uint64, frame
 	}
 
 	return
-}
-
-func createJpegBuffer(img image.Image, timestamp uint64, image_header ImageHeader, quality int) []byte {
-	p := bytes.Buffer{}
-
-	jpeg.Encode(&p, img, &jpeg.EncoderOptions{
-		Quality: quality,
-	})
-
-	head := bytes.Buffer{}
-
-	binary.Write(&head, binary.LittleEndian, &Header{
-		Type:      [4]byte{'J', 'P', 'E', 'G'},
-		Timestamp: timestamp,
-		Size:      int32(p.Len()),
-	})
-
-	binary.Write(&head, binary.LittleEndian, &image_header)
-
-	return append(head.Bytes(), p.Bytes()...)
 }
 
 func main() {}

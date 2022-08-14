@@ -20,7 +20,13 @@
 
 package main
 
-import "image"
+import (
+	"bytes"
+	"encoding/binary"
+	"image"
+
+	"github.com/pixiv/go-libjpeg/jpeg"
+)
 
 type AnnouncePayload struct {
 	Name          string
@@ -56,4 +62,22 @@ type Packet struct {
 	DoneProcessing bool
 	Quality        int
 	Image          image.Image
+}
+
+func (p *Packet) ToJPEG() {
+	b := bytes.Buffer{}
+
+	jpeg.Encode(&b, p.Image, &jpeg.EncoderOptions{
+		Quality: p.Quality,
+	})
+
+	p.Header.Type = [4]byte{'J', 'P', 'E', 'G'}
+	p.Header.Size = int32(b.Len())
+
+	h := bytes.Buffer{}
+
+	binary.Write(&h, binary.LittleEndian, &p.Header)
+	binary.Write(&h, binary.LittleEndian, &p.ImageHeader)
+
+	p.Buffer = append(h.Bytes(), b.Bytes()...)
 }

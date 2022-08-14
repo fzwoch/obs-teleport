@@ -140,7 +140,7 @@ func output_raw_video(data C.uintptr_t, frame *C.struct_video_data) {
 	go func(p *Packet) {
 		defer h.Done()
 
-		p.Buffer = createJpegBuffer(p.Image, p.Header.Timestamp, p.ImageHeader, p.Quality)
+		p.ToJPEG()
 
 		h.Lock()
 		defer h.Unlock()
