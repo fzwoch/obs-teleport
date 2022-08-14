@@ -33,7 +33,7 @@ type Discoverer struct {
 	ch chan struct{}
 }
 
-func (d *Discoverer) StartDiscoverer(services map[string]Peer, h *teleportSource) {
+func (d *Discoverer) StartDiscoverer(services map[string]Peer, h sync.Locker) {
 	d.ch = make(chan struct{})
 
 	d.Add(1)
