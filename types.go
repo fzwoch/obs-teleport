@@ -71,6 +71,8 @@ func (p *Packet) ToJPEG() {
 		Quality: p.Quality,
 	})
 
+	p.Image = nil
+
 	p.Header.Type = [4]byte{'J', 'P', 'E', 'G'}
 	p.Header.Size = int32(b.Len())
 
