@@ -90,7 +90,7 @@ func source_create(settings *C.obs_data_t, source *C.obs_source_t) C.uintptr_t {
 	}
 
 	h.Add(1)
-	go source_loop(h)
+	go h.sourceLoop()
 
 	return C.uintptr_t(cgo.NewHandle(h))
 }
@@ -174,7 +174,7 @@ func source_update(data C.uintptr_t, settings *C.obs_data_t) {
 	h.Wait()
 
 	h.Add(1)
-	go source_loop(h)
+	go h.sourceLoop()
 }
 
 //export source_activate
@@ -301,7 +301,7 @@ func (t *teleportSource) newPacket(p *Packet) {
 	}(p)
 }
 
-func source_loop(h *teleportSource) {
+func (h *teleportSource) sourceLoop() {
 	defer h.Done()
 
 	h.StartDiscoverer(h.services)
@@ -396,6 +396,7 @@ func source_loop(h *teleportSource) {
 
 			h.isStart = true
 			h.queue = nil
+			h.isAudioAndVideo = service.Payload.AudioAndVideo
 
 			for {
 				p := &Packet{}
