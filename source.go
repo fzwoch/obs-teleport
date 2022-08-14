@@ -28,7 +28,6 @@ package main
 //
 import "C"
 import (
-	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -42,8 +41,6 @@ import (
 	"sync"
 	"time"
 	"unsafe"
-
-	"github.com/pixiv/go-libjpeg/jpeg"
 )
 
 type Peer struct {
@@ -206,8 +203,7 @@ func (t *teleportSource) newPacket(p *Packet) {
 		defer t.Done()
 
 		if !p.IsAudio {
-			r := bytes.NewReader(p.Buffer)
-			p.Image, _ = jpeg.Decode(r, &jpeg.DecoderOptions{})
+			p.FromJPEG()
 		}
 
 		t.queueLock.Lock()

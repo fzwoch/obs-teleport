@@ -81,3 +81,8 @@ func (p *Packet) ToJPEG() {
 
 	p.Buffer = append(h.Bytes(), b.Bytes()...)
 }
+
+func (p *Packet) FromJPEG() {
+	r := bytes.NewReader(p.Buffer)
+	p.Image, _ = jpeg.Decode(r, &jpeg.DecoderOptions{})
+}
