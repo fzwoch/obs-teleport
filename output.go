@@ -38,12 +38,11 @@ type teleportOutput struct {
 	sync.WaitGroup
 	Announcer
 	Sender
-	done          chan any
-	output        *C.obs_output_t
-	queue         []*Packet
-	droppedFrames int
-	offsetVideo   C.uint64_t
-	offsetAudio   C.uint64_t
+	done        chan any
+	output      *C.obs_output_t
+	queue       []*Packet
+	offsetVideo C.uint64_t
+	offsetAudio C.uint64_t
 }
 
 //export output_get_name
@@ -74,7 +73,6 @@ func output_start(data C.uintptr_t) C.bool {
 	}
 
 	h.done = make(chan any)
-	h.droppedFrames = 0
 	h.offsetVideo = math.MaxUint64
 	h.offsetAudio = math.MaxUint64
 
