@@ -25,7 +25,6 @@ package main
 //
 import "C"
 import (
-	"image"
 	"math"
 	"net"
 	"runtime/cgo"
@@ -34,13 +33,6 @@ import (
 	"unsafe"
 )
 
-type queueInfo struct {
-	b            []byte
-	timestamp    uint64
-	done         bool
-	image_header ImageHeader
-}
-
 type teleportOutput struct {
 	sync.Mutex
 	sync.WaitGroup
@@ -48,7 +40,7 @@ type teleportOutput struct {
 	Sender
 	done          chan any
 	output        *C.obs_output_t
-	data          []*queueInfo
+	queue         []*Packet
 	droppedFrames int
 	offsetVideo   C.uint64_t
 	offsetAudio   C.uint64_t
@@ -120,44 +112,46 @@ func output_raw_video(data C.uintptr_t, frame *C.struct_video_data) {
 		h.offsetVideo = frame.timestamp
 	}
 
+	p := &Packet{
+		Header: Header{
+			Timestamp: uint64(frame.timestamp - h.offsetVideo),
+		},
+	}
+
 	settings := C.obs_source_get_settings(dummy)
-	quality := int(C.obs_data_get_int(settings, quality_str))
+	p.Quality = int(C.obs_data_get_int(settings, quality_str))
 	C.obs_data_release(settings)
 
 	video := C.obs_output_video(h.output)
 	info := C.video_output_get_info(video)
 
-	img := createImage(C.obs_output_get_width(h.output), C.obs_output_get_height(h.output), info.format, frame.data)
-	if img == nil {
+	p.Image = createImage(C.obs_output_get_width(h.output), C.obs_output_get_height(h.output), info.format, frame.data)
+	if p.Image == nil {
 		return
 	}
 
-	j := &queueInfo{
-		timestamp: uint64(frame.timestamp - h.offsetVideo),
-	}
-
-	C.video_format_get_parameters(info.colorspace, info._range, (*C.float)(unsafe.Pointer(&j.image_header.ColorMatrix[0])), (*C.float)(unsafe.Pointer(&j.image_header.ColorRangeMin[0])), (*C.float)(unsafe.Pointer(&j.image_header.ColorRangeMax[0])))
+	C.video_format_get_parameters(info.colorspace, info._range, (*C.float)(unsafe.Pointer(&p.ImageHeader.ColorMatrix[0])), (*C.float)(unsafe.Pointer(&p.ImageHeader.ColorRangeMin[0])), (*C.float)(unsafe.Pointer(&p.ImageHeader.ColorRangeMax[0])))
 
 	h.Lock()
-	h.data = append(h.data, j)
+	h.queue = append(h.queue, p)
 	h.Unlock()
 
 	h.Add(1)
-	go func(j *queueInfo, img image.Image) {
+	go func(p *Packet) {
 		defer h.Done()
 
-		j.b = createJpegBuffer(img, j.timestamp, j.image_header, quality)
+		p.Buffer = createJpegBuffer(p.Image, p.Header.Timestamp, p.ImageHeader, p.Quality)
 
 		h.Lock()
 		defer h.Unlock()
 
-		j.done = true
+		p.DoneProcessing = true
 
-		for len(h.data) > 0 && h.data[0].done {
-			h.SenderSend(j.b)
-			h.data = h.data[1:]
+		for len(h.queue) > 0 && h.queue[0].DoneProcessing {
+			h.SenderSend(p.Buffer)
+			h.queue = h.queue[1:]
 		}
-	}(j, img)
+	}(p)
 }
 
 //export output_raw_audio

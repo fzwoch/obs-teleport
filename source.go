@@ -304,7 +304,7 @@ func (t *teleportSource) newPacket(p *Packet) {
 func (h *teleportSource) sourceLoop() {
 	defer h.Done()
 
-	h.StartDiscoverer(h.services)
+	h.StartDiscoverer(h.services, h)
 	defer h.StopDiscoverer()
 
 	discover := make(chan struct{})
