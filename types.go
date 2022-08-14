@@ -20,6 +20,8 @@
 
 package main
 
+import "image"
+
 type AnnouncePayload struct {
 	Name          string
 	Port          int
@@ -43,4 +45,15 @@ type WaveHeader struct {
 	SampleRate int32
 	Speakers   int32
 	Frames     int32
+}
+
+type Packet struct {
+	Header         Header
+	ImageHeader    ImageHeader
+	WaveHeader     WaveHeader
+	Buffer         []byte
+	IsAudio        bool
+	DoneProcessing bool
+	Quality        int
+	Image          image.Image
 }

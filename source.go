@@ -52,28 +52,19 @@ type Peer struct {
 	Time    time.Time
 }
 
-type imageInfo struct {
-	timestamp    uint64
-	b            []byte
-	image        image.Image
-	done         bool
-	image_header ImageHeader
-	is_audio     bool
-	wave_header  WaveHeader
-}
-
 type teleportSource struct {
 	sync.Mutex
 	sync.WaitGroup
 	Discoverer
-	done      chan interface{}
-	services  map[string]Peer
-	source    *C.obs_source_t
-	imageLock sync.Mutex
-	images    []*imageInfo
-	frame     *C.struct_obs_source_frame
-	audio     *C.struct_obs_source_audio
-	isStart   bool
+	done            chan interface{}
+	services        map[string]Peer
+	source          *C.obs_source_t
+	queueLock       sync.Mutex
+	queue           []*Packet
+	frame           *C.struct_obs_source_frame
+	audio           *C.struct_obs_source_audio
+	isStart         bool
+	isAudioAndVideo bool
 }
 
 var (
@@ -193,6 +184,123 @@ func source_activate(data C.uintptr_t) {
 	C.obs_source_output_video(h.source, nil)
 }
 
+func (t *teleportSource) newPacket(p *Packet) {
+	t.queueLock.Lock()
+
+	t.queue = append(t.queue, p)
+
+	sort.Slice(t.queue, func(i, j int) bool {
+		return t.queue[i].Header.Timestamp < t.queue[j].Header.Timestamp
+	})
+
+	if len(t.queue) > 0 && time.Duration(t.queue[len(t.queue)-1].Header.Timestamp-t.queue[0].Header.Timestamp) > 5*time.Second {
+		tmp := C.CString("Queue exceeded")
+		C.blog_string(C.LOG_WARNING, tmp)
+		C.free(unsafe.Pointer(tmp))
+	}
+
+	t.queueLock.Unlock()
+
+	t.Add(1)
+	go func(p *Packet) {
+		defer t.Done()
+
+		if !p.IsAudio {
+			r := bytes.NewReader(p.Buffer)
+			p.Image, _ = jpeg.Decode(r, &jpeg.DecoderOptions{})
+		}
+
+		t.queueLock.Lock()
+		defer t.queueLock.Unlock()
+
+		p.DoneProcessing = true
+
+		for len(t.queue) > 0 && t.queue[0].DoneProcessing {
+			p := t.queue[0]
+
+			if t.isAudioAndVideo {
+				hasAudioAndVideo := false
+				for _, n := range t.queue[1:] {
+					if n.IsAudio != p.IsAudio {
+						hasAudioAndVideo = true
+						break
+					}
+				}
+				if !hasAudioAndVideo {
+					return
+				}
+			}
+
+			if t.isStart {
+				for i := len(t.queue) - 1; i >= 0; i-- {
+					if t.queue[i].IsAudio != t.queue[len(t.queue)-1].IsAudio {
+						t.queue = t.queue[i:]
+						break
+					}
+				}
+				t.isStart = false
+			}
+
+			if p.IsAudio {
+				t.audio.timestamp = C.uint64_t(p.Header.Timestamp)
+				t.audio.samples_per_sec = C.uint(p.WaveHeader.SampleRate)
+				t.audio.speakers = uint32(p.WaveHeader.Speakers)
+				t.audio.format = uint32(p.WaveHeader.Format)
+				t.audio.frames = C.uint(p.WaveHeader.Frames)
+				t.audio.data[0] = (*C.uint8_t)(unsafe.Pointer(&p.Buffer[0]))
+
+				C.obs_source_output_audio(t.source, t.audio)
+
+				t.audio.data[0] = nil
+			} else {
+				switch p.Image.(type) {
+				case *image.YCbCr:
+					img := p.Image.(*image.YCbCr)
+
+					t.frame.linesize[0] = C.uint(img.YStride)
+					t.frame.linesize[1] = C.uint(img.CStride)
+					t.frame.linesize[2] = C.uint(img.CStride)
+					t.frame.data[0] = (*C.uint8_t)(unsafe.Pointer(&img.Y[0]))
+					t.frame.data[1] = (*C.uint8_t)(unsafe.Pointer(&img.Cb[0]))
+					t.frame.data[2] = (*C.uint8_t)(unsafe.Pointer(&img.Cr[0]))
+
+					switch img.SubsampleRatio {
+					case image.YCbCrSubsampleRatio444:
+						t.frame.format = C.VIDEO_FORMAT_I444
+					case image.YCbCrSubsampleRatio422:
+						t.frame.format = C.VIDEO_FORMAT_I422
+					default:
+						t.frame.format = C.VIDEO_FORMAT_I420
+					}
+
+					if p.ImageHeader.ColorRangeMin == [3]float32{0, 0, 0} && p.ImageHeader.ColorRangeMax == [3]float32{1, 1, 1} {
+						t.frame.full_range = true
+					} else {
+						t.frame.full_range = false
+					}
+
+					t.frame.width = C.uint(p.Image.Bounds().Dx())
+					t.frame.height = C.uint(p.Image.Bounds().Dy())
+					t.frame.timestamp = C.uint64_t(p.Header.Timestamp)
+
+					copy(unsafe.Slice((*float32)(&t.frame.color_matrix[0]), 16), p.ImageHeader.ColorMatrix[:])
+					copy(unsafe.Slice((*float32)(&t.frame.color_range_min[0]), 3), p.ImageHeader.ColorRangeMin[:])
+					copy(unsafe.Slice((*float32)(&t.frame.color_range_max[0]), 3), p.ImageHeader.ColorRangeMax[:])
+
+					C.obs_source_output_video(t.source, t.frame)
+
+					t.frame.data[0] = nil
+					t.frame.data[1] = nil
+					t.frame.data[2] = nil
+				default:
+				}
+			}
+
+			t.queue = t.queue[1:]
+		}
+	}(p)
+}
+
 func source_loop(h *teleportSource) {
 	defer h.Done()
 
@@ -287,186 +395,41 @@ func source_loop(h *teleportSource) {
 			C.obs_source_output_audio(h.source, h.audio)
 
 			h.isStart = true
-			h.images = nil
+			h.queue = nil
 
 			for {
-				var (
-					header       Header
-					image_header ImageHeader
-					wave_header  WaveHeader
-				)
+				p := &Packet{}
 
-				err = binary.Read(c, binary.LittleEndian, &header)
+				err = binary.Read(c, binary.LittleEndian, &p.Header)
 				if err != nil {
 					break
 				}
-				switch header.Type {
+				switch p.Header.Type {
 				case [4]byte{'J', 'P', 'E', 'G'}:
-					err = binary.Read(c, binary.LittleEndian, &image_header)
+					err = binary.Read(c, binary.LittleEndian, &p.ImageHeader)
 					if err != nil {
 						break
 					}
 				case [4]byte{'W', 'A', 'V', 'E'}:
-					err = binary.Read(c, binary.LittleEndian, &wave_header)
+					err = binary.Read(c, binary.LittleEndian, &p.WaveHeader)
 					if err != nil {
 						break
 					}
+					p.IsAudio = true
 				case [4]byte{'A', 'N', 'J', 'A'}:
 					fallthrough
 				default:
 					break
 				}
 
-				b := make([]byte, header.Size)
+				p.Buffer = make([]byte, p.Header.Size)
 
-				_, err := io.ReadFull(c, b)
+				_, err := io.ReadFull(c, p.Buffer)
 				if err != nil {
 					break
 				}
 
-				switch header.Type {
-				case [4]byte{'J', 'P', 'E', 'G'}:
-					info := &imageInfo{
-						timestamp:    header.Timestamp,
-						b:            b,
-						image_header: image_header,
-					}
-
-					h.imageLock.Lock()
-					if len(h.images) > 0 && time.Duration(h.images[len(h.images)-1].timestamp-h.images[0].timestamp) > 5*time.Second {
-						tmp := C.CString("Queue exceeded")
-						C.blog_string(C.LOG_WARNING, tmp)
-						C.free(unsafe.Pointer(tmp))
-						info.b = []byte{}
-					}
-
-					h.images = append(h.images, info)
-					h.imageLock.Unlock()
-
-					h.Add(1)
-					go func(info *imageInfo) {
-						defer h.Done()
-
-						reader := bytes.NewReader(info.b)
-
-						img, _ := jpeg.Decode(reader, &jpeg.DecoderOptions{})
-
-						h.imageLock.Lock()
-						defer h.imageLock.Unlock()
-
-						info.image = img
-						info.done = true
-
-						sort.Slice(h.images, func(i, j int) bool {
-							return h.images[i].timestamp < h.images[j].timestamp
-						})
-
-						for len(h.images) > 0 && h.images[0].done {
-							i := h.images[0]
-
-							hasAudioAndVideo := false
-							for _, x := range h.images[1:] {
-								if x.is_audio != i.is_audio {
-									hasAudioAndVideo = true
-									break
-								}
-							}
-							if !hasAudioAndVideo {
-								return
-							}
-
-							if h.isStart {
-								for i := len(h.images) - 1; i >= 0; i-- {
-									if h.images[i].is_audio != h.images[len(h.images)-1].is_audio {
-										h.images = h.images[i:]
-										break
-									}
-								}
-								h.isStart = false
-							}
-
-							if i.is_audio {
-								if len(i.b) > 0 {
-									h.audio.timestamp = C.uint64_t(i.timestamp)
-									h.audio.samples_per_sec = C.uint(i.wave_header.SampleRate)
-									h.audio.speakers = uint32(i.wave_header.Speakers)
-									h.audio.format = uint32(i.wave_header.Format)
-									h.audio.frames = C.uint(i.wave_header.Frames)
-									h.audio.data[0] = (*C.uint8_t)(unsafe.Pointer(&i.b[0]))
-
-									C.obs_source_output_audio(h.source, h.audio)
-
-									h.audio.data[0] = nil
-								}
-
-								h.images = h.images[1:]
-								continue
-							}
-
-							switch i.image.(type) {
-							case *image.YCbCr:
-								img := i.image.(*image.YCbCr)
-
-								h.frame.linesize[0] = C.uint(img.YStride)
-								h.frame.linesize[1] = C.uint(img.CStride)
-								h.frame.linesize[2] = C.uint(img.CStride)
-								h.frame.data[0] = (*C.uint8_t)(unsafe.Pointer(&img.Y[0]))
-								h.frame.data[1] = (*C.uint8_t)(unsafe.Pointer(&img.Cb[0]))
-								h.frame.data[2] = (*C.uint8_t)(unsafe.Pointer(&img.Cr[0]))
-
-								switch img.SubsampleRatio {
-								case image.YCbCrSubsampleRatio444:
-									h.frame.format = C.VIDEO_FORMAT_I444
-								case image.YCbCrSubsampleRatio422:
-									h.frame.format = C.VIDEO_FORMAT_I422
-								default:
-									h.frame.format = C.VIDEO_FORMAT_I420
-								}
-
-								if i.image_header.ColorRangeMin == [3]float32{0, 0, 0} && i.image_header.ColorRangeMax == [3]float32{1, 1, 1} {
-									h.frame.full_range = true
-								} else {
-									h.frame.full_range = false
-								}
-							default:
-								h.images = h.images[1:]
-								continue
-							}
-
-							h.frame.width = C.uint(i.image.Bounds().Dx())
-							h.frame.height = C.uint(i.image.Bounds().Dy())
-							h.frame.timestamp = C.uint64_t(i.timestamp)
-
-							copy(unsafe.Slice((*float32)(&h.frame.color_matrix[0]), 16), i.image_header.ColorMatrix[:])
-							copy(unsafe.Slice((*float32)(&h.frame.color_range_min[0]), 3), i.image_header.ColorRangeMin[:])
-							copy(unsafe.Slice((*float32)(&h.frame.color_range_max[0]), 3), i.image_header.ColorRangeMax[:])
-
-							C.obs_source_output_video(h.source, h.frame)
-
-							h.frame.data[0] = nil
-							h.frame.data[1] = nil
-							h.frame.data[2] = nil
-
-							h.images = h.images[1:]
-						}
-					}(info)
-				case [4]byte{'W', 'A', 'V', 'E'}:
-					j := &imageInfo{
-						timestamp:   header.Timestamp,
-						is_audio:    true,
-						wave_header: wave_header,
-						b:           b,
-						done:        true,
-					}
-
-					h.imageLock.Lock()
-					h.images = append(h.images, j)
-
-					sort.Slice(h.images, func(i, j int) bool {
-						return h.images[i].timestamp < h.images[j].timestamp
-					})
-					h.imageLock.Unlock()
-				}
+				h.newPacket(p)
 			}
 		}
 	}()
