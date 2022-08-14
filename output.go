@@ -79,7 +79,7 @@ func output_start(data C.uintptr_t) C.bool {
 	h.offsetAudio = math.MaxUint64
 
 	h.Add(1)
-	go output_loop(h)
+	go h.outputLoop()
 
 	C.obs_output_begin_data_capture(h.output, 0)
 
@@ -175,7 +175,7 @@ func output_raw_audio(data C.uintptr_t, frames *C.struct_audio_data) {
 	h.SenderSend(buffer)
 }
 
-func output_loop(h *teleportOutput) {
+func (h *teleportOutput) outputLoop() {
 	defer h.Done()
 	defer h.SenderClose()
 
