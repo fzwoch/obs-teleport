@@ -123,7 +123,7 @@ func output_raw_video(data C.uintptr_t, frame *C.struct_video_data) {
 	video := C.obs_output_video(h.output)
 	info := C.video_output_get_info(video)
 
-	p.Image = createImage(C.obs_output_get_width(h.output), C.obs_output_get_height(h.output), info.format, frame.data)
+	p.ToImage(C.obs_output_get_width(h.output), C.obs_output_get_height(h.output), info.format, frame.data)
 	if p.Image == nil {
 		return
 	}
