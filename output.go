@@ -163,14 +163,15 @@ func output_raw_audio(data C.uintptr_t, frames *C.struct_audio_data) {
 	audio := C.obs_output_audio(h.output)
 	info := C.audio_output_get_info(audio)
 
-	f := &C.struct_obs_audio_data{
-		frames: frames.frames,
-		data:   frames.data,
+	p := Packet{
+		Header: Header{
+			Timestamp: uint64(frames.timestamp - h.offsetAudio),
+		},
 	}
 
-	buffer := createAudioBuffer(info, uint64(frames.timestamp-h.offsetAudio), f)
+	p.ToWAVE(info, frames.frames, frames.data)
 
-	h.SenderSend(buffer)
+	h.SenderSend(p.Buffer)
 }
 
 func (h *teleportOutput) outputLoop() {

@@ -90,8 +90,6 @@ package main
 //
 import "C"
 import (
-	"bytes"
-	"encoding/binary"
 	"image"
 	"image/color"
 	"unsafe"
@@ -422,110 +420,6 @@ func createImage(w C.uint32_t, h C.uint32_t, format C.enum_video_format, data [C
 				img.(*image.RGBA).Set(x, y, color)
 			}
 		}
-	}
-
-	return
-}
-
-func createAudioBuffer(info *C.struct_audio_output_info, timestamp uint64, frames *C.struct_obs_audio_data) (buf []byte) {
-	var (
-		bytesPerSample int
-		format         C.enum_video_format
-	)
-
-	switch info.format {
-	case C.AUDIO_FORMAT_U8BIT:
-		fallthrough
-	case C.AUDIO_FORMAT_U8BIT_PLANAR:
-		bytesPerSample = 1
-		format = C.AUDIO_FORMAT_U8BIT
-	case C.AUDIO_FORMAT_16BIT:
-		fallthrough
-	case C.AUDIO_FORMAT_16BIT_PLANAR:
-		bytesPerSample = 2
-		format = C.AUDIO_FORMAT_16BIT
-	case C.AUDIO_FORMAT_32BIT:
-		fallthrough
-	case C.AUDIO_FORMAT_32BIT_PLANAR:
-		bytesPerSample = 4
-		format = C.AUDIO_FORMAT_32BIT
-	case C.AUDIO_FORMAT_FLOAT:
-		fallthrough
-	case C.AUDIO_FORMAT_FLOAT_PLANAR:
-		bytesPerSample = 4
-		format = C.AUDIO_FORMAT_FLOAT
-	}
-
-	size := bytesPerSample * int(info.speakers) * int(frames.frames)
-
-	h := bytes.Buffer{}
-
-	binary.Write(&h, binary.LittleEndian, &Header{
-		Type:      [4]byte{'W', 'A', 'V', 'E'},
-		Timestamp: timestamp,
-		Size:      int32(size),
-	})
-
-	wave_h := bytes.Buffer{}
-
-	binary.Write(&wave_h, binary.LittleEndian, &WaveHeader{
-		Format:     int32(format),
-		SampleRate: int32(info.samples_per_sec),
-		Speakers:   int32(info.speakers),
-		Frames:     int32(frames.frames),
-	})
-
-	buf = make([]byte, h.Len()+wave_h.Len()+size)
-
-	copy(buf, append(h.Bytes(), wave_h.Bytes()...))
-
-	wave := buf[len(buf)-size:]
-
-	switch info.format {
-	case C.AUDIO_FORMAT_32BIT_PLANAR:
-		fallthrough
-	case C.AUDIO_FORMAT_FLOAT_PLANAR:
-		var tmp [C.MAX_AUDIO_CHANNELS][]byte
-
-		for i := 0; i < int(info.speakers); i++ {
-			tmp[i] = unsafe.Slice((*byte)(frames.data[i]), int(frames.frames)*bytesPerSample)
-		}
-
-		for i := 0; i < int(frames.frames); i++ {
-			for j := 0; j < int(info.speakers); j++ {
-				wave[i*int(info.speakers)*4+j*4+0] = tmp[j][i*4+0]
-				wave[i*int(info.speakers)*4+j*4+1] = tmp[j][i*4+1]
-				wave[i*int(info.speakers)*4+j*4+2] = tmp[j][i*4+2]
-				wave[i*int(info.speakers)*4+j*4+3] = tmp[j][i*4+3]
-			}
-		}
-	case C.AUDIO_FORMAT_16BIT_PLANAR:
-		var tmp [C.MAX_AUDIO_CHANNELS][]byte
-
-		for i := 0; i < int(info.speakers); i++ {
-			tmp[i] = unsafe.Slice((*byte)(frames.data[i]), int(frames.frames)*bytesPerSample)
-		}
-
-		for i := 0; i < int(frames.frames); i++ {
-			for j := 0; j < int(info.speakers); j++ {
-				wave[i*int(info.speakers)*2+j*2+0] = tmp[j][i*2+0]
-				wave[i*int(info.speakers)*2+j*2+1] = tmp[j][i*2+1]
-			}
-		}
-	case C.AUDIO_FORMAT_U8BIT_PLANAR:
-		var tmp [C.MAX_AUDIO_CHANNELS][]byte
-
-		for i := 0; i < int(info.speakers); i++ {
-			tmp[i] = unsafe.Slice((*byte)(frames.data[i]), int(frames.frames)*bytesPerSample)
-		}
-
-		for i := 0; i < int(frames.frames); i++ {
-			for j := 0; j < int(info.speakers); j++ {
-				wave[i*int(info.speakers)+j] = tmp[j][i]
-			}
-		}
-	default:
-		copy(wave, unsafe.Slice((*byte)(frames.data[0]), len(wave)))
 	}
 
 	return

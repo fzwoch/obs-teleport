@@ -20,14 +20,6 @@
 
 package main
 
-import (
-	"bytes"
-	"encoding/binary"
-	"image"
-
-	"github.com/pixiv/go-libjpeg/jpeg"
-)
-
 type AnnouncePayload struct {
 	Name          string
 	Port          int
@@ -51,40 +43,4 @@ type WaveHeader struct {
 	SampleRate int32
 	Speakers   int32
 	Frames     int32
-}
-
-type Packet struct {
-	Header         Header
-	ImageHeader    ImageHeader
-	WaveHeader     WaveHeader
-	Buffer         []byte
-	IsAudio        bool
-	DoneProcessing bool
-	Quality        int
-	Image          image.Image
-}
-
-func (p *Packet) ToJPEG() {
-	b := bytes.Buffer{}
-
-	jpeg.Encode(&b, p.Image, &jpeg.EncoderOptions{
-		Quality: p.Quality,
-	})
-
-	p.Image = nil
-
-	p.Header.Type = [4]byte{'J', 'P', 'E', 'G'}
-	p.Header.Size = int32(b.Len())
-
-	h := bytes.Buffer{}
-
-	binary.Write(&h, binary.LittleEndian, &p.Header)
-	binary.Write(&h, binary.LittleEndian, &p.ImageHeader)
-
-	p.Buffer = append(h.Bytes(), b.Bytes()...)
-}
-
-func (p *Packet) FromJPEG() {
-	r := bytes.NewReader(p.Buffer)
-	p.Image, _ = jpeg.Decode(r, &jpeg.DecoderOptions{})
 }
