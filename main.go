@@ -142,47 +142,47 @@ func obs_module_load() C.bool {
 		update:         C.update_t(unsafe.Pointer(C.source_update)),
 		activate:       C.activate_t(unsafe.Pointer(C.source_activate)),
 	}, C.sizeof_struct_obs_source_info)
-	/*
-		C.obs_register_source_s(&C.struct_obs_source_info{
-			id:             filter_str,
-			_type:          C.OBS_SOURCE_TYPE_FILTER,
-			output_flags:   C.OBS_SOURCE_ASYNC_VIDEO | C.OBS_SOURCE_DO_NOT_DUPLICATE,
-			get_name:       C.get_name_t(unsafe.Pointer(C.filter_get_name)),
-			create:         C.source_create_t(unsafe.Pointer(C.filter_create)),
-			destroy:        C.destroy_t(unsafe.Pointer(C.filter_destroy)),
-			get_properties: C.get_properties_t(unsafe.Pointer(C.filter_get_properties)),
-			get_defaults:   C.get_defaults_t(unsafe.Pointer(C.filter_get_defaults)),
-			update:         C.update_t(unsafe.Pointer(C.filter_update)),
-			filter_video:   C.filter_video_t(unsafe.Pointer(C.filter_video)),
-			filter_audio:   C.filter_audio_t(unsafe.Pointer(C.filter_audio)),
-		}, C.sizeof_struct_obs_source_info)
 
-		C.obs_register_source_s(&C.struct_obs_source_info{
-			id:             filter_video_str,
-			_type:          C.OBS_SOURCE_TYPE_FILTER,
-			output_flags:   C.OBS_SOURCE_ASYNC_VIDEO | C.OBS_SOURCE_DO_NOT_DUPLICATE,
-			get_name:       C.get_name_t(unsafe.Pointer(C.filter_video_get_name)),
-			create:         C.source_create_t(unsafe.Pointer(C.filter_create)),
-			destroy:        C.destroy_t(unsafe.Pointer(C.filter_destroy)),
-			get_properties: C.get_properties_t(unsafe.Pointer(C.filter_get_properties)),
-			get_defaults:   C.get_defaults_t(unsafe.Pointer(C.filter_get_defaults)),
-			update:         C.update_t(unsafe.Pointer(C.filter_update)),
-			filter_video:   C.filter_video_t(unsafe.Pointer(C.filter_video)),
-		}, C.sizeof_struct_obs_source_info)
+	C.obs_register_source_s(&C.struct_obs_source_info{
+		id:             filter_str,
+		_type:          C.OBS_SOURCE_TYPE_FILTER,
+		output_flags:   C.OBS_SOURCE_ASYNC_VIDEO | C.OBS_SOURCE_DO_NOT_DUPLICATE,
+		get_name:       C.get_name_t(unsafe.Pointer(C.filter_get_name)),
+		create:         C.source_create_t(unsafe.Pointer(C.filter_create)),
+		destroy:        C.destroy_t(unsafe.Pointer(C.filter_destroy)),
+		get_properties: C.get_properties_t(unsafe.Pointer(C.filter_get_properties)),
+		get_defaults:   C.get_defaults_t(unsafe.Pointer(C.filter_get_defaults)),
+		update:         C.update_t(unsafe.Pointer(C.filter_update)),
+		filter_video:   C.filter_video_t(unsafe.Pointer(C.filter_video)),
+		filter_audio:   C.filter_audio_t(unsafe.Pointer(C.filter_audio)),
+	}, C.sizeof_struct_obs_source_info)
 
-		C.obs_register_source_s(&C.struct_obs_source_info{
-			id:             filter_audio_str,
-			_type:          C.OBS_SOURCE_TYPE_FILTER,
-			output_flags:   C.OBS_SOURCE_AUDIO | C.OBS_SOURCE_DO_NOT_DUPLICATE,
-			get_name:       C.get_name_t(unsafe.Pointer(C.filter_audio_get_name)),
-			create:         C.source_create_t(unsafe.Pointer(C.filter_create)),
-			destroy:        C.destroy_t(unsafe.Pointer(C.filter_destroy)),
-			get_properties: C.get_properties_t(unsafe.Pointer(C.filter_get_properties)),
-			get_defaults:   C.get_defaults_t(unsafe.Pointer(C.filter_get_defaults)),
-			update:         C.update_t(unsafe.Pointer(C.filter_update)),
-			filter_audio:   C.filter_audio_t(unsafe.Pointer(C.filter_audio)),
-		}, C.sizeof_struct_obs_source_info)
-	*/
+	C.obs_register_source_s(&C.struct_obs_source_info{
+		id:             filter_video_str,
+		_type:          C.OBS_SOURCE_TYPE_FILTER,
+		output_flags:   C.OBS_SOURCE_ASYNC_VIDEO | C.OBS_SOURCE_DO_NOT_DUPLICATE,
+		get_name:       C.get_name_t(unsafe.Pointer(C.filter_video_get_name)),
+		create:         C.source_create_t(unsafe.Pointer(C.filter_create)),
+		destroy:        C.destroy_t(unsafe.Pointer(C.filter_destroy)),
+		get_properties: C.get_properties_t(unsafe.Pointer(C.filter_get_properties)),
+		get_defaults:   C.get_defaults_t(unsafe.Pointer(C.filter_get_defaults)),
+		update:         C.update_t(unsafe.Pointer(C.filter_update)),
+		filter_video:   C.filter_video_t(unsafe.Pointer(C.filter_video)),
+	}, C.sizeof_struct_obs_source_info)
+
+	C.obs_register_source_s(&C.struct_obs_source_info{
+		id:             filter_audio_str,
+		_type:          C.OBS_SOURCE_TYPE_FILTER,
+		output_flags:   C.OBS_SOURCE_AUDIO | C.OBS_SOURCE_DO_NOT_DUPLICATE,
+		get_name:       C.get_name_t(unsafe.Pointer(C.filter_audio_get_name)),
+		create:         C.source_create_t(unsafe.Pointer(C.filter_create)),
+		destroy:        C.destroy_t(unsafe.Pointer(C.filter_destroy)),
+		get_properties: C.get_properties_t(unsafe.Pointer(C.filter_get_properties)),
+		get_defaults:   C.get_defaults_t(unsafe.Pointer(C.filter_get_defaults)),
+		update:         C.update_t(unsafe.Pointer(C.filter_update)),
+		filter_audio:   C.filter_audio_t(unsafe.Pointer(C.filter_audio)),
+	}, C.sizeof_struct_obs_source_info)
+
 	C.obs_register_output_s(&C.struct_obs_output_info{
 		id:        output_str,
 		flags:     C.OBS_OUTPUT_AV,

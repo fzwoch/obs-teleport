@@ -18,8 +18,6 @@
 // along with obs-teleport. If not, see <http://www.gnu.org/licenses/>.
 //
 
-//go:build disable
-
 package main
 
 // #include <obs-module.h>
@@ -29,31 +27,23 @@ package main
 //
 import "C"
 import (
-	"encoding/json"
 	"image"
 	"math"
 	"net"
-	"os"
 	"runtime/cgo"
 	"strconv"
 	"sync"
-	"time"
 	"unsafe"
-
-	"github.com/schollz/peerdiscovery"
 )
 
 type teleportFilter struct {
 	sync.Mutex
 	sync.WaitGroup
-	conns       map[net.Conn]interface{}
-	connsLock   sync.Mutex
+	Announcer
+	Sender
 	done        chan interface{}
 	filter      *C.obs_source_t
-	queueLock   sync.Mutex
-	data        []*queueInfo
-	audioOnly   bool
-	videoOnly   bool
+	queue       []*Packet
 	offsetVideo C.uint64_t
 	offsetAudio C.uint64_t
 }
@@ -76,17 +66,10 @@ func filter_audio_get_name(type_data C.uintptr_t) *C.char {
 //export filter_create
 func filter_create(settings *C.obs_data_t, source *C.obs_source_t) C.uintptr_t {
 	h := &teleportFilter{
-		conns:       make(map[net.Conn]interface{}),
 		done:        make(chan interface{}),
 		filter:      source,
 		offsetVideo: math.MaxUint64,
 		offsetAudio: math.MaxUint64,
-	}
-
-	if C.astrcmpi(C.obs_source_get_id(source), filter_audio_str) == 0 {
-		h.audioOnly = true
-	} else if C.astrcmpi(C.obs_source_get_id(source), filter_video_str) == 0 {
-		h.videoOnly = true
 	}
 
 	h.Add(1)
@@ -162,86 +145,55 @@ func filter_video(data C.uintptr_t, frame *C.struct_obs_source_frame) *C.struct_
 		h.offsetVideo = frame.timestamp
 	}
 
-	h.Lock()
-	if len(h.conns) == 0 {
-		h.Unlock()
-		return frame
+	p := &Packet{
+		Header: Header{
+			Timestamp: uint64(frame.timestamp - h.offsetVideo),
+		},
 	}
-	h.Unlock()
 
 	settings := C.obs_source_get_settings(h.filter)
-	quality := int(C.obs_data_get_int(settings, quality_str))
+	p.Quality = int(C.obs_data_get_int(settings, quality_str))
 	C.obs_data_release(settings)
 
-	img := createImage(frame.width, frame.height, frame.format, frame.data)
-	if img == nil {
+	p.ToImage(frame.width, frame.height, frame.format, frame.data)
+	if p.Image == nil {
 		return frame
 	}
 
-	j := &queueInfo{
-		timestamp: uint64(frame.timestamp - h.offsetVideo),
-	}
-
-	switch img.(type) {
+	switch p.Image.(type) {
 	case *image.YCbCr:
-		copy(j.image_header.ColorMatrix[:], (unsafe.Slice((*float32)(&frame.color_matrix[0]), 16)))
-		copy(j.image_header.ColorRangeMin[:], (unsafe.Slice((*float32)(&frame.color_range_min[0]), 3)))
-		copy(j.image_header.ColorRangeMax[:], (unsafe.Slice((*float32)(&frame.color_range_max[0]), 3)))
+		copy(p.ImageHeader.ColorMatrix[:], (unsafe.Slice((*float32)(&frame.color_matrix[0]), 16)))
 		if frame.full_range {
-			j.image_header.ColorRangeMin = [3]float32{0, 0, 0}
-			j.image_header.ColorRangeMax = [3]float32{1, 1, 1}
+			p.ImageHeader.ColorRangeMin = [3]float32{0, 0, 0}
+			p.ImageHeader.ColorRangeMax = [3]float32{1, 1, 1}
+		} else {
+			copy(p.ImageHeader.ColorRangeMin[:], (unsafe.Slice((*float32)(&frame.color_range_min[0]), 3)))
+			copy(p.ImageHeader.ColorRangeMax[:], (unsafe.Slice((*float32)(&frame.color_range_max[0]), 3)))
 		}
 	default:
-		C.video_format_get_parameters(C.VIDEO_CS_SRGB, C.VIDEO_RANGE_FULL, (*C.float)(unsafe.Pointer(&j.image_header.ColorMatrix[0])), (*C.float)(unsafe.Pointer(&j.image_header.ColorRangeMin[0])), (*C.float)(unsafe.Pointer(&j.image_header.ColorRangeMax[0])))
+		C.video_format_get_parameters(C.VIDEO_CS_SRGB, C.VIDEO_RANGE_FULL, (*C.float)(unsafe.Pointer(&p.ImageHeader.ColorMatrix[0])), (*C.float)(unsafe.Pointer(&p.ImageHeader.ColorRangeMin[0])), (*C.float)(unsafe.Pointer(&p.ImageHeader.ColorRangeMax[0])))
 	}
 
-	h.queueLock.Lock()
-	if len(h.data) > 0 && time.Duration(h.data[len(h.data)-1].timestamp-h.data[0].timestamp) > time.Second {
-		//	j.b = createDummyJpegBuffer(j.timestamp)
-	}
-
-	h.data = append(h.data, j)
-	h.queueLock.Unlock()
+	h.Lock()
+	h.queue = append(h.queue, p)
+	h.Unlock()
 
 	h.Add(1)
-	go func(j *queueInfo, img image.Image) {
+	go func(p *Packet) {
 		defer h.Done()
 
-		if j.b == nil {
-			j.b = createJpegBuffer(img, j.timestamp, j.image_header, quality)
+		p.ToJPEG()
+
+		h.Lock()
+		defer h.Unlock()
+
+		p.DoneProcessing = true
+
+		for len(h.queue) > 0 && h.queue[0].DoneProcessing {
+			h.SenderSend(p.Buffer)
+			h.queue = h.queue[1:]
 		}
-
-		if h.videoOnly {
-			//			j.b = append(j.b, createDummyAudioBuffer(j.timestamp)...)
-		}
-
-		h.queueLock.Lock()
-		defer h.queueLock.Unlock()
-
-		j.done = true
-
-		for len(h.data) > 0 && h.data[0].done {
-			h.Lock()
-			h.connsLock.Lock()
-
-			for c := range h.conns {
-				go func(c net.Conn, j *queueInfo) {
-					_, err := c.Write(j.b)
-					if err != nil {
-						c.Close()
-						h.connsLock.Lock()
-						delete(h.conns, c)
-						h.connsLock.Unlock()
-					}
-				}(c, h.data[0])
-			}
-
-			h.connsLock.Unlock()
-			h.Unlock()
-
-			h.data = h.data[1:]
-		}
-	}(j, img)
+	}(p)
 
 	return frame
 }
@@ -254,59 +206,28 @@ func filter_audio(data C.uintptr_t, frames *C.struct_obs_audio_data) *C.struct_o
 		h.offsetVideo = frames.timestamp
 	}
 
-	h.Lock()
-	if len(h.conns) == 0 {
-		h.Unlock()
-
-		return frames
-	}
-	h.Unlock()
-
 	audio := C.obs_get_audio()
-	info := C.audio_output_get_info(audio)
+	info := C.audio_output_get_info(audio) //FIXME: output??
 
-	buffer := createAudioBuffer(info, uint64(frames.timestamp-h.offsetAudio), frames)
-
-	if h.audioOnly {
-		//		buffer = append(buffer, createDummyJpegBuffer(uint64(frames.timestamp-h.offsetAudio))...)
+	p := Packet{
+		Header: Header{
+			Timestamp: uint64(frames.timestamp - h.offsetAudio),
+		},
 	}
 
-	h.Lock()
-	defer h.Unlock()
+	p.ToWAVE(info, frames.frames, frames.data)
 
-	h.connsLock.Lock()
-	defer h.connsLock.Unlock()
-
-	for c := range h.conns {
-		go func(c net.Conn, buffer []byte) {
-			_, err := c.Write(buffer)
-			if err != nil {
-				c.Close()
-				h.connsLock.Lock()
-				delete(h.conns, c)
-				h.connsLock.Unlock()
-			}
-		}(c, buffer)
-	}
+	h.SenderSend(p.Buffer)
 
 	return frames
 }
 
 func filter_loop(h *teleportFilter) {
 	defer h.Done()
-
-	defer func() {
-		h.Lock()
-		defer h.Unlock()
-
-		for c := range h.conns {
-			c.Close()
-			delete(h.conns, c)
-		}
-
-	}()
+	defer h.SenderClose()
 
 	settings := C.obs_source_get_settings(h.filter)
+	name := C.GoString(C.obs_data_get_string(settings, identifier_str))
 	listenPort := int(C.obs_data_get_int(settings, port_str))
 	C.obs_data_release(settings)
 
@@ -326,53 +247,24 @@ func filter_loop(h *teleportFilter) {
 				break
 			}
 
-			h.Lock()
-			h.conns[c] = nil
-			h.Unlock()
+			h.SenderAdd(c)
 		}
 	}()
 
-	_, port, err := net.SplitHostPort(l.Addr().String())
+	_, p, err := net.SplitHostPort(l.Addr().String())
 	if err != nil {
 		panic(err)
 	}
 
-	discover := make(chan struct{})
-	defer close(discover)
+	port, _ := strconv.Atoi(p)
 
-	h.Add(1)
-	go func() {
-		defer h.Done()
+	audioAndVideo := true
+	if C.astrcmpi(C.obs_source_get_id(h.filter), filter_audio_str) == 0 || C.astrcmpi(C.obs_source_get_id(h.filter), filter_video_str) == 0 {
+		audioAndVideo = false
+	}
 
-		p, _ := strconv.Atoi(port)
-
-		settings := C.obs_source_get_settings(h.filter)
-		name := C.GoString(C.obs_data_get_string(settings, identifier_str))
-		C.obs_data_release(settings)
-
-		if name == "" {
-			name, err = os.Hostname()
-			if err != nil {
-				name = "(None)"
-			}
-		}
-
-		j := struct {
-			Name string
-			Port int
-		}{
-			Name: name,
-			Port: p,
-		}
-
-		b, _ := json.Marshal(j)
-
-		peerdiscovery.Discover(peerdiscovery.Settings{
-			TimeLimit: -1,
-			StopChan:  discover,
-			Payload:   b,
-		})
-	}()
+	h.StartAnnouncer(name, port, audioAndVideo)
+	defer h.StopAnnouncer()
 
 	<-h.done
 }

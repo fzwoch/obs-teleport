@@ -189,13 +189,6 @@ func (h *teleportOutput) outputLoop() {
 	}
 	defer l.Close()
 
-	_, p, err := net.SplitHostPort(l.Addr().String())
-	if err != nil {
-		panic(err)
-	}
-
-	port, _ := strconv.Atoi(p)
-
 	h.Add(1)
 	go func() {
 		defer h.Done()
@@ -209,6 +202,13 @@ func (h *teleportOutput) outputLoop() {
 			h.SenderAdd(c)
 		}
 	}()
+
+	_, p, err := net.SplitHostPort(l.Addr().String())
+	if err != nil {
+		panic(err)
+	}
+
+	port, _ := strconv.Atoi(p)
 
 	h.StartAnnouncer(name, port, true)
 	defer h.StopAnnouncer()
