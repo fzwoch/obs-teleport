@@ -258,9 +258,9 @@ func filter_loop(h *teleportFilter) {
 
 	port, _ := strconv.Atoi(p)
 
-	audioAndVideo := true
-	if C.astrcmpi(C.obs_source_get_id(h.filter), filter_audio_str) == 0 || C.astrcmpi(C.obs_source_get_id(h.filter), filter_video_str) == 0 {
-		audioAndVideo = false
+	audioAndVideo := false
+	if C.astrcmpi(C.obs_source_get_id(h.filter), filter_str) == 0 {
+		audioAndVideo = true
 	}
 
 	h.StartAnnouncer(name, port, audioAndVideo)
