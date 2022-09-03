@@ -30,6 +30,7 @@ import (
 	"runtime/cgo"
 	"strconv"
 	"sync"
+	"time"
 	"unsafe"
 )
 
@@ -38,11 +39,12 @@ type teleportOutput struct {
 	sync.WaitGroup
 	Announcer
 	Sender
-	done        chan any
-	output      *C.obs_output_t
-	queue       []*Packet
-	offsetVideo C.uint64_t
-	offsetAudio C.uint64_t
+	done         chan any
+	output       *C.obs_output_t
+	queue        []*Packet
+	laggedFrames int
+	offsetVideo  C.uint64_t
+	offsetAudio  C.uint64_t
 }
 
 //export output_get_name
@@ -73,6 +75,7 @@ func output_start(data C.uintptr_t) C.bool {
 	}
 
 	h.done = make(chan any)
+	h.laggedFrames = 0
 	h.offsetVideo = math.MaxUint64
 	h.offsetAudio = math.MaxUint64
 
@@ -131,6 +134,10 @@ func output_raw_video(data C.uintptr_t, frame *C.struct_video_data) {
 	C.video_format_get_parameters(info.colorspace, info._range, (*C.float)(unsafe.Pointer(&p.ImageHeader.ColorMatrix[0])), (*C.float)(unsafe.Pointer(&p.ImageHeader.ColorRangeMin[0])), (*C.float)(unsafe.Pointer(&p.ImageHeader.ColorRangeMax[0])))
 
 	h.Lock()
+	if len(h.queue) > 0 && time.Duration(h.queue[len(h.queue)-1].Header.Timestamp-h.queue[0].Header.Timestamp) > time.Second {
+		h.laggedFrames++
+	}
+
 	h.queue = append(h.queue, p)
 	h.Unlock()
 
@@ -172,6 +179,16 @@ func output_raw_audio(data C.uintptr_t, frames *C.struct_audio_data) {
 	p.ToWAVE(info, frames.frames, frames.data)
 
 	h.SenderSend(p.Buffer)
+}
+
+//export output_get_dropped_frames
+func output_get_dropped_frames(data C.uintptr_t) C.int {
+	h := cgo.Handle(data).Value().(*teleportOutput)
+
+	h.Lock()
+	defer h.Unlock()
+
+	return C.int(h.laggedFrames)
 }
 
 func (h *teleportOutput) outputLoop() {
