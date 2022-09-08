@@ -25,39 +25,26 @@ package main
 //
 import "C"
 import (
-	"encoding/json"
-	"image"
 	"math"
 	"net"
-	"os"
 	"runtime/cgo"
 	"strconv"
 	"sync"
 	"time"
 	"unsafe"
-
-	"github.com/schollz/peerdiscovery"
 )
-
-type queueInfo struct {
-	b            []byte
-	timestamp    uint64
-	done         bool
-	image_header image_header
-}
 
 type teleportOutput struct {
 	sync.Mutex
 	sync.WaitGroup
-	conns         map[net.Conn]interface{}
-	connsLock     sync.Mutex
-	done          chan interface{}
-	output        *C.obs_output_t
-	queueLock     sync.Mutex
-	data          []*queueInfo
-	droppedFrames int
-	offsetVideo   C.uint64_t
-	offsetAudio   C.uint64_t
+	Announcer
+	Sender
+	done         chan any
+	output       *C.obs_output_t
+	queue        []*Packet
+	laggedFrames int
+	offsetVideo  C.uint64_t
+	offsetAudio  C.uint64_t
 }
 
 //export output_get_name
@@ -68,7 +55,6 @@ func output_get_name(type_data C.uintptr_t) *C.char {
 //export output_create
 func output_create(settings *C.obs_data_t, output *C.obs_output_t) C.uintptr_t {
 	h := &teleportOutput{
-		conns:  make(map[net.Conn]interface{}),
 		output: output,
 	}
 
@@ -88,13 +74,13 @@ func output_start(data C.uintptr_t) C.bool {
 		return false
 	}
 
-	h.done = make(chan interface{})
-	h.droppedFrames = 0
+	h.done = make(chan any)
+	h.laggedFrames = 0
 	h.offsetVideo = math.MaxUint64
 	h.offsetAudio = math.MaxUint64
 
 	h.Add(1)
-	go output_loop(h)
+	go h.outputLoop()
 
 	C.obs_output_begin_data_capture(h.output, 0)
 
@@ -127,75 +113,50 @@ func output_raw_video(data C.uintptr_t, frame *C.struct_video_data) {
 		h.offsetVideo = frame.timestamp
 	}
 
-	h.Lock()
-	if len(h.conns) == 0 {
-		h.Unlock()
-		return
+	p := &Packet{
+		Header: Header{
+			Timestamp: uint64(frame.timestamp - h.offsetVideo),
+		},
 	}
-	h.Unlock()
 
 	settings := C.obs_source_get_settings(dummy)
-	quality := int(C.obs_data_get_int(settings, quality_str))
+	p.Quality = int(C.obs_data_get_int(settings, quality_str))
 	C.obs_data_release(settings)
 
 	video := C.obs_output_video(h.output)
 	info := C.video_output_get_info(video)
 
-	img := createImage(C.obs_output_get_width(h.output), C.obs_output_get_height(h.output), info.format, frame.data)
-	if img == nil {
+	p.ToImage(C.obs_output_get_width(h.output), C.obs_output_get_height(h.output), info.format, frame.data)
+	if p.Image == nil {
 		return
 	}
 
-	j := &queueInfo{
-		timestamp: uint64(frame.timestamp - h.offsetVideo),
+	C.video_format_get_parameters(info.colorspace, info._range, (*C.float)(unsafe.Pointer(&p.ImageHeader.ColorMatrix[0])), (*C.float)(unsafe.Pointer(&p.ImageHeader.ColorRangeMin[0])), (*C.float)(unsafe.Pointer(&p.ImageHeader.ColorRangeMax[0])))
+
+	h.Lock()
+	if len(h.queue) > 0 && time.Duration(h.queue[len(h.queue)-1].Header.Timestamp-h.queue[0].Header.Timestamp) > time.Second {
+		h.laggedFrames++
 	}
 
-	C.video_format_get_parameters(info.colorspace, info._range, (*C.float)(unsafe.Pointer(&j.image_header.ColorMatrix[0])), (*C.float)(unsafe.Pointer(&j.image_header.ColorRangeMin[0])), (*C.float)(unsafe.Pointer(&j.image_header.ColorRangeMax[0])))
-
-	h.queueLock.Lock()
-	if len(h.data) > 0 && time.Duration(h.data[len(h.data)-1].timestamp-h.data[0].timestamp) > time.Second {
-		h.droppedFrames++
-		j.b = createDummyJpegBuffer(j.timestamp)
-	}
-
-	h.data = append(h.data, j)
-	h.queueLock.Unlock()
+	h.queue = append(h.queue, p)
+	h.Unlock()
 
 	h.Add(1)
-	go func(j *queueInfo, img image.Image) {
+	go func(p *Packet) {
 		defer h.Done()
 
-		if j.b == nil {
-			j.b = createJpegBuffer(img, j.timestamp, j.image_header, quality)
+		p.ToJPEG()
+
+		h.Lock()
+		defer h.Unlock()
+
+		p.DoneProcessing = true
+
+		for len(h.queue) > 0 && h.queue[0].DoneProcessing {
+			h.SenderSend(p.Buffer)
+			h.queue = h.queue[1:]
 		}
-
-		h.queueLock.Lock()
-		defer h.queueLock.Unlock()
-
-		j.done = true
-
-		for len(h.data) > 0 && h.data[0].done {
-			h.Lock()
-			h.connsLock.Lock()
-
-			for c := range h.conns {
-				go func(c net.Conn, j *queueInfo) {
-					_, err := c.Write(j.b)
-					if err != nil {
-						c.Close()
-						h.connsLock.Lock()
-						delete(h.conns, c)
-						h.connsLock.Unlock()
-					}
-				}(c, h.data[0])
-			}
-
-			h.connsLock.Unlock()
-			h.Unlock()
-
-			h.data = h.data[1:]
-		}
-	}(j, img)
+	}(p)
 }
 
 //export output_raw_audio
@@ -206,66 +167,36 @@ func output_raw_audio(data C.uintptr_t, frames *C.struct_audio_data) {
 		h.offsetAudio = frames.timestamp
 	}
 
-	h.Lock()
-	if len(h.conns) == 0 {
-		h.Unlock()
-		return
-	}
-	h.Unlock()
-
 	audio := C.obs_output_audio(h.output)
 	info := C.audio_output_get_info(audio)
 
-	f := &C.struct_obs_audio_data{
-		frames: frames.frames,
-		data:   frames.data,
+	p := Packet{
+		Header: Header{
+			Timestamp: uint64(frames.timestamp - h.offsetAudio),
+		},
 	}
 
-	buffer := createAudioBuffer(info, uint64(frames.timestamp-h.offsetAudio), f)
+	p.ToWAVE(info, frames.frames, frames.data)
 
-	h.Lock()
-	defer h.Unlock()
-
-	h.connsLock.Lock()
-	defer h.connsLock.Unlock()
-
-	for c := range h.conns {
-		go func(c net.Conn, buffer []byte) {
-			_, err := c.Write(buffer)
-			if err != nil {
-				c.Close()
-				h.connsLock.Lock()
-				delete(h.conns, c)
-				h.connsLock.Unlock()
-			}
-		}(c, buffer)
-	}
+	h.SenderSend(p.Buffer)
 }
 
 //export output_get_dropped_frames
 func output_get_dropped_frames(data C.uintptr_t) C.int {
 	h := cgo.Handle(data).Value().(*teleportOutput)
 
-	h.queueLock.Lock()
-	defer h.queueLock.Unlock()
+	h.Lock()
+	defer h.Unlock()
 
-	return C.int(h.droppedFrames)
+	return C.int(h.laggedFrames)
 }
 
-func output_loop(h *teleportOutput) {
+func (h *teleportOutput) outputLoop() {
 	defer h.Done()
-
-	defer func() {
-		h.Lock()
-		defer h.Unlock()
-
-		for c := range h.conns {
-			c.Close()
-			delete(h.conns, c)
-		}
-	}()
+	defer h.SenderClose()
 
 	settings := C.obs_source_get_settings(dummy)
+	name := C.GoString(C.obs_data_get_string(settings, identifier_str))
 	listenPort := int(C.obs_data_get_int(settings, port_str))
 	C.obs_data_release(settings)
 
@@ -285,53 +216,19 @@ func output_loop(h *teleportOutput) {
 				break
 			}
 
-			h.Lock()
-			h.conns[c] = nil
-			h.Unlock()
+			h.SenderAdd(c)
 		}
 	}()
 
-	_, port, err := net.SplitHostPort(l.Addr().String())
+	_, p, err := net.SplitHostPort(l.Addr().String())
 	if err != nil {
 		panic(err)
 	}
 
-	discover := make(chan struct{})
-	defer close(discover)
+	port, _ := strconv.Atoi(p)
 
-	h.Add(1)
-	go func() {
-		defer h.Done()
-
-		p, _ := strconv.Atoi(port)
-
-		settings := C.obs_source_get_settings(dummy)
-		name := C.GoString(C.obs_data_get_string(settings, identifier_str))
-		C.obs_data_release(settings)
-
-		if name == "" {
-			name, err = os.Hostname()
-			if err != nil {
-				name = "(None)"
-			}
-		}
-
-		j := struct {
-			Name string
-			Port int
-		}{
-			Name: name,
-			Port: p,
-		}
-
-		b, _ := json.Marshal(j)
-
-		peerdiscovery.Discover(peerdiscovery.Settings{
-			TimeLimit: -1,
-			StopChan:  discover,
-			Payload:   b,
-		})
-	}()
+	h.StartAnnouncer(name, port, true)
+	defer h.StopAnnouncer()
 
 	<-h.done
 }

@@ -1,6 +1,6 @@
 module obs-teleport
 
-go 1.17
+go 1.18
 
 require (
 	github.com/pixiv/go-libjpeg v0.0.0-20190822045933-3da21a74767d
@@ -8,6 +8,6 @@ require (
 )
 
 require (
-	golang.org/x/net v0.0.0-20220708220712-1185a9018129 // indirect
-	golang.org/x/sys v0.0.0-20220715151400-c0bba94af5f8 // indirect
+	golang.org/x/net v0.0.0-20220812174116-3211cb980234 // indirect
+	golang.org/x/sys v0.0.0-20220811171246-fbc7d0a398ab // indirect
 )
