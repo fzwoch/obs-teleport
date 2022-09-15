@@ -41,7 +41,7 @@ type teleportFilter struct {
 	sync.WaitGroup
 	Announcer
 	Sender
-	done        chan interface{}
+	done        chan any
 	filter      *C.obs_source_t
 	queue       []*Packet
 	offsetVideo C.uint64_t
@@ -66,7 +66,7 @@ func filter_audio_get_name(type_data C.uintptr_t) *C.char {
 //export filter_create
 func filter_create(settings *C.obs_data_t, source *C.obs_source_t) C.uintptr_t {
 	h := &teleportFilter{
-		done:        make(chan interface{}),
+		done:        make(chan any),
 		filter:      source,
 		offsetVideo: math.MaxUint64,
 		offsetAudio: math.MaxUint64,

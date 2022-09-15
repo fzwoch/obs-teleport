@@ -53,7 +53,7 @@ type teleportSource struct {
 	sync.Mutex
 	sync.WaitGroup
 	Discoverer
-	done            chan interface{}
+	done            chan any
 	services        map[string]Peer
 	source          *C.obs_source_t
 	queueLock       sync.Mutex
@@ -79,7 +79,7 @@ func source_get_name(type_data C.uintptr_t) *C.char {
 //export source_create
 func source_create(settings *C.obs_data_t, source *C.obs_source_t) C.uintptr_t {
 	h := &teleportSource{
-		done:     make(chan interface{}),
+		done:     make(chan any),
 		services: map[string]Peer{},
 		source:   source,
 		frame:    (*C.struct_obs_source_frame)(C.bzalloc(C.sizeof_struct_obs_source_frame)),
@@ -303,7 +303,7 @@ func (h *teleportSource) sourceLoop() {
 	h.StartDiscoverer(h.services, h)
 	defer h.StopDiscoverer()
 
-	discover := make(chan struct{})
+	discover := make(chan any)
 	defer close(discover)
 
 	ticker := time.NewTicker(time.Second)
@@ -315,7 +315,7 @@ func (h *teleportSource) sourceLoop() {
 		shutdown  bool
 	)
 
-	dial := make(chan struct{})
+	dial := make(chan any)
 	defer func() {
 		close(dial)
 
