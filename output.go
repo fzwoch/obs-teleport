@@ -153,7 +153,7 @@ func output_raw_video(data C.uintptr_t, frame *C.struct_video_data) {
 		p.DoneProcessing = true
 
 		for len(h.queue) > 0 && h.queue[0].DoneProcessing {
-			h.SenderSend(p.Buffer)
+			h.SenderSend(h.queue[0].Buffer)
 			h.queue = h.queue[1:]
 		}
 	}(p)
