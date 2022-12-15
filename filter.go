@@ -145,6 +145,10 @@ func filter_video(data C.uintptr_t, frame *C.struct_obs_source_frame) *C.struct_
 		h.offsetVideo = frame.timestamp
 	}
 
+	if h.SenderGetNumConns() == 0 {
+		return frame
+	}
+
 	p := &Packet{
 		Header: Header{
 			Timestamp: uint64(frame.timestamp - h.offsetVideo),
@@ -204,6 +208,10 @@ func filter_audio(data C.uintptr_t, frames *C.struct_obs_audio_data) *C.struct_o
 
 	if h.offsetVideo == math.MaxUint64 {
 		h.offsetVideo = frames.timestamp
+	}
+
+	if h.SenderGetNumConns() == 0 {
+		return frames
 	}
 
 	audio := C.obs_get_audio()

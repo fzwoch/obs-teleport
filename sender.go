@@ -42,6 +42,13 @@ func (s *Sender) SenderAdd(c net.Conn) {
 	s.conns[c] = nil
 }
 
+func (s *Sender) SenderGetNumConns() int {
+	s.Lock()
+	defer s.Unlock()
+
+	return len(s.conns)
+}
+
 func (s *Sender) SenderSend(b []byte) {
 	s.Lock()
 	defer s.Unlock()

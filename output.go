@@ -113,6 +113,10 @@ func output_raw_video(data C.uintptr_t, frame *C.struct_video_data) {
 		h.offsetVideo = frame.timestamp
 	}
 
+	if h.SenderGetNumConns() == 0 {
+		return
+	}
+
 	p := &Packet{
 		Header: Header{
 			Timestamp: uint64(frame.timestamp - h.offsetVideo),
@@ -165,6 +169,10 @@ func output_raw_audio(data C.uintptr_t, frames *C.struct_audio_data) {
 
 	if h.offsetAudio == math.MaxUint64 {
 		h.offsetAudio = frames.timestamp
+	}
+
+	if h.SenderGetNumConns() == 0 {
+		return
 	}
 
 	audio := C.obs_output_audio(h.output)
