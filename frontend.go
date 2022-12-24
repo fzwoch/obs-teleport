@@ -26,6 +26,7 @@ package main
 // #include <util/platform.h>
 //
 // extern void frontend_cb(uintptr_t data);
+// extern bool quality_warning_callback(obs_properties_t *properties, obs_property_t *prop, obs_data_t *settings);
 //
 import "C"
 import (
@@ -45,6 +46,8 @@ var (
 	port_description_str          = C.CString("0 means 'Auto'")
 	quality_str                   = C.CString("quality")
 	quality_readable_str          = C.CString("Quality")
+	quality_warning               = C.CString("quality-warning")
+	quality_warning_str           = C.CString("Warning: A quality value over 90 is not recommended!\n\nEverything above 90 will most likely increase bandwidth by a lot, with very little visual quality gains. You can still try, but you have been warned.")
 	apply_str                     = C.CString("Apply")
 	empty_str                     = C.CString("")
 	config_str                    = C.CString("obs-teleport.json")
@@ -114,6 +117,22 @@ func dummy_destroy(data C.uintptr_t) {
 	cgo.Handle(data).Delete()
 }
 
+//export quality_warning_callback
+func quality_warning_callback(properties *C.obs_properties_t, prop *C.obs_property_t, settings *C.obs_data_t) C.bool {
+
+	quality := int(C.obs_data_get_int(settings, quality_str))
+	warning := C.obs_properties_get(properties, quality_warning)
+	visible := C.obs_property_visible(warning)
+
+	if quality > 90 {
+		C.obs_property_set_visible(warning, true)
+	} else {
+		C.obs_property_set_visible(warning, false)
+	}
+
+	return visible != (quality > 90)
+}
+
 //export dummy_get_properties
 func dummy_get_properties(data C.uintptr_t) *C.obs_properties_t {
 	properties := C.obs_properties_create()
@@ -128,7 +147,11 @@ func dummy_get_properties(data C.uintptr_t) *C.obs_properties_t {
 	prop = C.obs_properties_add_int(properties, port_str, port_readable_str, 0, math.MaxUint16, 1)
 	C.obs_property_set_long_description(prop, port_description_str)
 
-	C.obs_properties_add_int_slider(properties, quality_str, quality_readable_str, 0, 100, 1)
+	prop = C.obs_properties_add_int_slider(properties, quality_str, quality_readable_str, 0, 100, 1)
+	C.obs_property_set_modified_callback(prop, C.obs_property_modified_t(unsafe.Pointer(C.quality_warning_callback)))
+
+	prop = C.obs_properties_add_text(properties, quality_warning, quality_warning_str, C.OBS_TEXT_INFO)
+	C.obs_property_text_set_info_type(prop, C.OBS_TEXT_INFO_WARNING)
 
 	return properties
 }

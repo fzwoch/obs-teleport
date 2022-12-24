@@ -23,7 +23,8 @@ package main
 // #include <obs-module.h>
 // #include <util/dstr.h>
 //
-// bool filter_apply_clicked(obs_properties_t *props, obs_property_t *property, uintptr_t data);
+// extern bool filter_apply_clicked(obs_properties_t *props, obs_property_t *property, uintptr_t data);
+// extern bool quality_warning_callback(obs_properties_t *properties, obs_property_t *prop, obs_data_t *settings);
 //
 import "C"
 import (
@@ -109,9 +110,13 @@ func filter_get_properties(data C.uintptr_t) *C.obs_properties_t {
 	prop = C.obs_properties_add_int(properties, port_str, port_readable_str, 0, math.MaxUint16, 1)
 	C.obs_property_set_long_description(prop, port_description_str)
 
-	C.obs_properties_add_int_slider(properties, quality_str, quality_readable_str, 0, 100, 1)
+	prop = C.obs_properties_add_int_slider(properties, quality_str, quality_readable_str, 0, 100, 1)
+	C.obs_property_set_modified_callback(prop, C.obs_property_modified_t(unsafe.Pointer(C.quality_warning_callback)))
 
 	C.obs_properties_add_button(properties, apply_str, apply_str, C.obs_property_clicked_t(unsafe.Pointer(C.filter_apply_clicked)))
+
+	prop = C.obs_properties_add_text(properties, quality_warning, quality_warning_str, C.OBS_TEXT_INFO)
+	C.obs_property_text_set_info_type(prop, C.OBS_TEXT_INFO_WARNING)
 
 	return properties
 }
