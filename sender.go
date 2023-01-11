@@ -20,15 +20,23 @@
 
 package main
 
+//
+// #include <obs-module.h>
+//
+// extern void blog_string(const int log_level, const char* string);
+//
+import "C"
 import (
 	"net"
 	"sync"
+	"unsafe"
 )
 
 type Sender struct {
 	sync.Mutex
 	sync.WaitGroup
 	conns map[net.Conn]any
+	ch    chan []byte
 }
 
 func (s *Sender) SenderAdd(c net.Conn) {
@@ -53,25 +61,56 @@ func (s *Sender) SenderSend(b []byte) {
 	s.Lock()
 	defer s.Unlock()
 
-	for c := range s.conns {
-		s.Add(1)
+	if s.ch == nil {
+		s.ch = make(chan []byte, 1000)
 
-		go func(c net.Conn) {
+		s.Add(1)
+		go func() {
 			defer s.Done()
 
-			_, err := c.Write(b)
-			if err != nil {
-				c.Close()
+			for b := range s.ch {
 				s.Lock()
-				delete(s.conns, c)
+				for c := range s.conns {
+					s.Add(1)
+					go func(c net.Conn) {
+						defer s.Done()
+
+						_, err := c.Write(b)
+						if err != nil {
+							c.Close()
+							s.Lock()
+							delete(s.conns, c)
+							s.Unlock()
+						}
+					}(c)
+				}
 				s.Unlock()
 			}
-		}(c)
+
+			s.ch = nil
+		}()
 	}
+
+	if len(s.ch) > 800 {
+		tmp := C.CString("Send Queue exceeded")
+		C.blog_string(C.LOG_WARNING, tmp)
+		C.free(unsafe.Pointer(tmp))
+		return
+	} else if len(s.ch) > 100 {
+		tmp := C.CString("Send Queue high")
+		C.blog_string(C.LOG_WARNING, tmp)
+		C.free(unsafe.Pointer(tmp))
+	}
+
+	s.ch <- b
 }
 
 func (s *Sender) SenderClose() {
 	s.Lock()
+
+	if s.ch != nil {
+		close(s.ch)
+	}
 
 	for c := range s.conns {
 		c.Close()
