@@ -28,6 +28,7 @@ package main
 import "C"
 import (
 	"net"
+	"strconv"
 	"sync"
 	"unsafe"
 )
@@ -52,15 +53,16 @@ func (s *Sender) SenderAdd(c net.Conn) {
 	s.Add(1)
 	go func() {
 		defer s.Done()
+		defer c.Close()
 
 		for b := range ch {
 			_, err := c.Write(b)
 			if err != nil {
 				s.Lock()
 				close(ch)
-				c.Close()
 				delete(s.conns, c)
 				s.Unlock()
+				break
 			}
 		}
 	}()
@@ -79,12 +81,12 @@ func (s *Sender) SenderSend(b []byte) {
 
 	for _, ch := range s.conns {
 		if len(ch) > 800 {
-			tmp := C.CString("Send Queue exceeded")
+			tmp := C.CString("send queue exceeded: " + strconv.Itoa(len(ch)))
 			C.blog_string(C.LOG_WARNING, tmp)
 			C.free(unsafe.Pointer(tmp))
 			continue
 		} else if len(ch) > 100 {
-			tmp := C.CString("Send Queue high")
+			tmp := C.CString("send queue high: " + strconv.Itoa(len(ch)))
 			C.blog_string(C.LOG_WARNING, tmp)
 			C.free(unsafe.Pointer(tmp))
 		}
@@ -96,12 +98,11 @@ func (s *Sender) SenderSend(b []byte) {
 func (s *Sender) SenderClose() {
 	s.Lock()
 
-	for c, ch := range s.conns {
+	for _, ch := range s.conns {
 		close(ch)
-		c.Close()
 	}
 
-	s.conns = make(map[net.Conn]chan []byte)
+	s.conns = nil
 
 	s.Unlock()
 	s.Wait()
