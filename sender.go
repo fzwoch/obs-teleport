@@ -35,8 +35,7 @@ import (
 type Sender struct {
 	sync.Mutex
 	sync.WaitGroup
-	conns map[net.Conn]any
-	ch    chan []byte
+	conns map[net.Conn]chan []byte
 }
 
 func (s *Sender) SenderAdd(c net.Conn) {
@@ -44,10 +43,27 @@ func (s *Sender) SenderAdd(c net.Conn) {
 	defer s.Unlock()
 
 	if s.conns == nil {
-		s.conns = make(map[net.Conn]any)
+		s.conns = make(map[net.Conn]chan []byte)
 	}
 
-	s.conns[c] = nil
+	ch := make(chan []byte, 1000)
+	s.conns[c] = ch
+
+	s.Add(1)
+	go func() {
+		defer s.Done()
+
+		for b := range ch {
+			_, err := c.Write(b)
+			if err != nil {
+				s.Lock()
+				close(ch)
+				c.Close()
+				delete(s.conns, c)
+				s.Unlock()
+			}
+		}
+	}()
 }
 
 func (s *Sender) SenderGetNumConns() int {
@@ -61,62 +77,31 @@ func (s *Sender) SenderSend(b []byte) {
 	s.Lock()
 	defer s.Unlock()
 
-	if s.ch == nil {
-		s.ch = make(chan []byte, 1000)
+	for _, ch := range s.conns {
+		if len(ch) > 800 {
+			tmp := C.CString("Send Queue exceeded")
+			C.blog_string(C.LOG_WARNING, tmp)
+			C.free(unsafe.Pointer(tmp))
+			continue
+		} else if len(ch) > 100 {
+			tmp := C.CString("Send Queue high")
+			C.blog_string(C.LOG_WARNING, tmp)
+			C.free(unsafe.Pointer(tmp))
+		}
 
-		s.Add(1)
-		go func() {
-			defer s.Done()
-
-			for b := range s.ch {
-				s.Lock()
-				for c := range s.conns {
-					s.Add(1)
-					go func(c net.Conn) {
-						defer s.Done()
-
-						_, err := c.Write(b)
-						if err != nil {
-							c.Close()
-							s.Lock()
-							delete(s.conns, c)
-							s.Unlock()
-						}
-					}(c)
-				}
-				s.Unlock()
-			}
-
-			s.ch = nil
-		}()
+		ch <- b
 	}
-
-	if len(s.ch) > 800 {
-		tmp := C.CString("Send Queue exceeded")
-		C.blog_string(C.LOG_WARNING, tmp)
-		C.free(unsafe.Pointer(tmp))
-		return
-	} else if len(s.ch) > 100 {
-		tmp := C.CString("Send Queue high")
-		C.blog_string(C.LOG_WARNING, tmp)
-		C.free(unsafe.Pointer(tmp))
-	}
-
-	s.ch <- b
 }
 
 func (s *Sender) SenderClose() {
 	s.Lock()
 
-	if s.ch != nil {
-		close(s.ch)
-	}
-
-	for c := range s.conns {
+	for c, ch := range s.conns {
+		close(ch)
 		c.Close()
 	}
 
-	s.conns = make(map[net.Conn]any)
+	s.conns = make(map[net.Conn]chan []byte)
 
 	s.Unlock()
 	s.Wait()
