@@ -79,14 +79,14 @@ func (s *Sender) SenderSend(b []byte) {
 	s.Lock()
 	defer s.Unlock()
 
-	for _, ch := range s.conns {
+	for c, ch := range s.conns {
 		if len(ch) > 800 {
-			tmp := C.CString("send queue exceeded: " + strconv.Itoa(len(ch)))
+			tmp := C.CString("send queue exceeded [" + c.RemoteAddr().String() + "] " + strconv.Itoa(len(ch)))
 			C.blog_string(C.LOG_WARNING, tmp)
 			C.free(unsafe.Pointer(tmp))
 			continue
 		} else if len(ch) > 100 {
-			tmp := C.CString("send queue high: " + strconv.Itoa(len(ch)))
+			tmp := C.CString("send queue high [" + c.RemoteAddr().String() + "] " + strconv.Itoa(len(ch)))
 			C.blog_string(C.LOG_WARNING, tmp)
 			C.free(unsafe.Pointer(tmp))
 		}
