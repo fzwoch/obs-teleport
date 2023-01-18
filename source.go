@@ -191,7 +191,7 @@ func (t *teleportSource) newPacket(p *Packet) {
 	})
 
 	if len(t.queue) > 0 && time.Duration(t.queue[len(t.queue)-1].Header.Timestamp-t.queue[0].Header.Timestamp) > 5*time.Second {
-		tmp := C.CString("Queue exceeded")
+		tmp := C.CString("queue exceeded")
 		C.blog_string(C.LOG_WARNING, tmp)
 		C.free(unsafe.Pointer(tmp))
 	}

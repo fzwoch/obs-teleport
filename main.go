@@ -129,7 +129,7 @@ var (
 
 //export obs_module_load
 func obs_module_load() C.bool {
-	v := C.CString("Version " + version)
+	v := C.CString("version: " + version)
 	C.blog_string(C.LOG_INFO, v)
 	C.free(unsafe.Pointer(v))
 
