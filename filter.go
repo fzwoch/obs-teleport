@@ -211,8 +211,8 @@ func filter_video(data C.uintptr_t, frame *C.struct_obs_source_frame) *C.struct_
 func filter_audio(data C.uintptr_t, frames *C.struct_obs_audio_data) *C.struct_obs_audio_data {
 	h := cgo.Handle(data).Value().(*teleportFilter)
 
-	if h.offsetVideo == math.MaxUint64 {
-		h.offsetVideo = frames.timestamp
+	if h.offsetAudio == math.MaxUint64 {
+		h.offsetAudio = frames.timestamp
 	}
 
 	if h.SenderGetNumConns() == 0 {
