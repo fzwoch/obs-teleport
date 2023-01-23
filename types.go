@@ -20,6 +20,14 @@
 
 package main
 
+//
+// #include <obs-module.h>
+//
+// extern void blog_string(const int log_level, const char* string);
+//
+import "C"
+import "unsafe"
+
 type AnnouncePayload struct {
 	Name          string
 	Port          int
@@ -43,4 +51,10 @@ type WaveHeader struct {
 	SampleRate int32
 	Speakers   int32
 	Frames     int32
+}
+
+func blog(log_level C.int, message string) {
+	tmp := C.CString(message)
+	C.blog_string(log_level, tmp)
+	C.free(unsafe.Pointer(tmp))
 }

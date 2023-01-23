@@ -24,7 +24,6 @@ package main
 // #include <obs-module.h>
 //
 // extern bool refresh_list(obs_properties_t *props, obs_property_t *property, uintptr_t data);
-// extern void blog_string(const int log_level, const char* string);
 //
 import "C"
 import (
@@ -190,10 +189,10 @@ func (t *teleportSource) newPacket(p *Packet) {
 		return t.queue[i].Header.Timestamp < t.queue[j].Header.Timestamp
 	})
 
-	if len(t.queue) > 0 && time.Duration(t.queue[len(t.queue)-1].Header.Timestamp-t.queue[0].Header.Timestamp) > 5*time.Second {
-		tmp := C.CString("queue exceeded")
-		C.blog_string(C.LOG_WARNING, tmp)
-		C.free(unsafe.Pointer(tmp))
+	queueSize := time.Duration(t.queue[len(t.queue)-1].Header.Timestamp - t.queue[0].Header.Timestamp)
+
+	if queueSize > 5*time.Second {
+		blog(C.LOG_WARNING, "decode queue exceeded: "+queueSize.String())
 	}
 
 	t.queueLock.Unlock()

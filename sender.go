@@ -23,14 +23,11 @@ package main
 //
 // #include <obs-module.h>
 //
-// extern void blog_string(const int log_level, const char* string);
-//
 import "C"
 import (
 	"net"
 	"strconv"
 	"sync"
-	"unsafe"
 )
 
 type Sender struct {
@@ -81,14 +78,10 @@ func (s *Sender) SenderSend(b []byte) {
 
 	for c, ch := range s.conns {
 		if len(ch) > 800 {
-			tmp := C.CString("send queue exceeded [" + c.RemoteAddr().String() + "] " + strconv.Itoa(len(ch)))
-			C.blog_string(C.LOG_WARNING, tmp)
-			C.free(unsafe.Pointer(tmp))
+			blog(C.LOG_WARNING, "send queue exceeded ["+c.RemoteAddr().String()+"] "+strconv.Itoa(len(ch)))
 			continue
 		} else if len(ch) > 100 {
-			tmp := C.CString("send queue high [" + c.RemoteAddr().String() + "] " + strconv.Itoa(len(ch)))
-			C.blog_string(C.LOG_WARNING, tmp)
-			C.free(unsafe.Pointer(tmp))
+			blog(C.LOG_WARNING, "send queue high ["+c.RemoteAddr().String()+"] "+strconv.Itoa(len(ch)))
 		}
 
 		ch <- b

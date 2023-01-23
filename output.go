@@ -23,8 +23,6 @@ package main
 //
 // #include <obs-module.h>
 //
-// extern void blog_string(const int log_level, const char* string);
-//
 import "C"
 import (
 	"math"
@@ -145,10 +143,7 @@ func output_raw_video(data C.uintptr_t, frame *C.struct_video_data) {
 	queueSize := time.Duration(h.queue[len(h.queue)-1].Header.Timestamp - h.queue[0].Header.Timestamp)
 
 	if queueSize > time.Second {
-		tmp := C.CString("encoder queue exceeded: " + queueSize.String())
-		C.blog_string(C.LOG_WARNING, tmp)
-		C.free(unsafe.Pointer(tmp))
-
+		blog(C.LOG_WARNING, "encoder queue exceeded: "+queueSize.String())
 		h.laggedFrames++
 	}
 	h.Unlock()
