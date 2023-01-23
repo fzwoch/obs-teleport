@@ -23,6 +23,8 @@ package main
 //
 // #include <obs-module.h>
 //
+// extern void blog_string(const int log_level, const char* string);
+//
 import "C"
 import (
 	"math"
@@ -138,11 +140,17 @@ func output_raw_video(data C.uintptr_t, frame *C.struct_video_data) {
 	C.video_format_get_parameters(info.colorspace, info._range, (*C.float)(unsafe.Pointer(&p.ImageHeader.ColorMatrix[0])), (*C.float)(unsafe.Pointer(&p.ImageHeader.ColorRangeMin[0])), (*C.float)(unsafe.Pointer(&p.ImageHeader.ColorRangeMax[0])))
 
 	h.Lock()
-	if len(h.queue) > 0 && time.Duration(h.queue[len(h.queue)-1].Header.Timestamp-h.queue[0].Header.Timestamp) > time.Second {
+	h.queue = append(h.queue, p)
+
+	queueSize := time.Duration(h.queue[len(h.queue)-1].Header.Timestamp - h.queue[0].Header.Timestamp)
+
+	if queueSize > time.Second {
+		tmp := C.CString("encoder queue exceeded: " + queueSize.String())
+		C.blog_string(C.LOG_WARNING, tmp)
+		C.free(unsafe.Pointer(tmp))
+
 		h.laggedFrames++
 	}
-
-	h.queue = append(h.queue, p)
 	h.Unlock()
 
 	h.Add(1)

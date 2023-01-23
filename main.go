@@ -1,6 +1,6 @@
 //
 // obs-teleport. OBS Studio plugin.
-// Copyright (C) 2021-2022 Florian Zwoch <fzwoch@gmail.com>
+// Copyright (C) 2021-2023 Florian Zwoch <fzwoch@gmail.com>
 //
 // This file is part of obs-teleport.
 //
@@ -86,10 +86,7 @@ package main
 // extern int output_get_dropped_frames(uintptr_t data);
 //
 // extern void frontend_event_cb(enum obs_frontend_event event, uintptr_t data);
-//
-// static void blog_string(const int log_level, const char* string) {
-//   blog(log_level, "[obs-teleport] %s", string);
-// }
+// extern void blog_string(const int log_level, const char* string);
 //
 import "C"
 import (
