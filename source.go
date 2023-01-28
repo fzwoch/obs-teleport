@@ -52,14 +52,15 @@ type teleportSource struct {
 	sync.Mutex
 	sync.WaitGroup
 	Discoverer
-	done      chan any
-	services  map[string]Peer
-	source    *C.obs_source_t
-	queueLock sync.Mutex
-	queue     []*Packet
-	frame     *C.struct_obs_source_frame
-	audio     *C.struct_obs_source_audio
-	isPreroll bool
+	done            chan any
+	services        map[string]Peer
+	source          *C.obs_source_t
+	queueLock       sync.Mutex
+	queue           []*Packet
+	frame           *C.struct_obs_source_frame
+	audio           *C.struct_obs_source_audio
+	isStart         bool
+	isAudioAndVideo bool
 }
 
 var (
@@ -210,20 +211,30 @@ func (t *teleportSource) newPacket(p *Packet) {
 		p.DoneProcessing = true
 
 		for len(t.queue) > 0 && t.queue[0].DoneProcessing {
-			if t.isPreroll {
-				for i := 0; i < len(t.queue)-2; i++ {
-					if t.queue[i].IsAudio != t.queue[i+1].IsAudio {
-						t.queue = t.queue[i:]
-						t.isPreroll = false
+			p := t.queue[0]
+
+			if t.isAudioAndVideo {
+				hasAudioAndVideo := false
+				for _, n := range t.queue[1:] {
+					if n.IsAudio != p.IsAudio {
+						hasAudioAndVideo = true
 						break
 					}
 				}
-				if t.isPreroll {
+				if !hasAudioAndVideo {
 					return
 				}
 			}
 
-			p := t.queue[0]
+			if t.isStart {
+				for i := len(t.queue) - 1; i >= 0; i-- {
+					if t.queue[i].IsAudio != t.queue[len(t.queue)-1].IsAudio {
+						t.queue = t.queue[i:]
+						break
+					}
+				}
+				t.isStart = false
+			}
 
 			if p.IsAudio {
 				t.audio.timestamp = C.uint64_t(p.Header.Timestamp)
@@ -378,8 +389,9 @@ func (h *teleportSource) sourceLoop() {
 
 			C.obs_source_output_audio(h.source, h.audio)
 
+			h.isStart = true
 			h.queue = nil
-			h.isPreroll = service.Payload.AudioAndVideo
+			h.isAudioAndVideo = service.Payload.AudioAndVideo
 
 			for {
 				p := &Packet{}
