@@ -44,11 +44,9 @@ type teleportFilter struct {
 	sync.WaitGroup
 	Announcer
 	Sender
-	done        chan any
-	filter      *C.obs_source_t
-	queue       []*Packet
-	offsetVideo C.uint64_t
-	offsetAudio C.uint64_t
+	done   chan any
+	filter *C.obs_source_t
+	queue  []*Packet
 }
 
 //export filter_get_name
@@ -69,10 +67,8 @@ func filter_audio_get_name(type_data C.uintptr_t) *C.char {
 //export filter_create
 func filter_create(settings *C.obs_data_t, source *C.obs_source_t) C.uintptr_t {
 	h := &teleportFilter{
-		done:        make(chan any),
-		filter:      source,
-		offsetVideo: math.MaxUint64,
-		offsetAudio: math.MaxUint64,
+		done:   make(chan any),
+		filter: source,
 	}
 
 	h.Add(1)
@@ -137,9 +133,6 @@ func filter_update(data C.uintptr_t, settings *C.obs_data_t) {
 	h.done <- nil
 	h.Wait()
 
-	h.offsetVideo = math.MaxUint64
-	h.offsetAudio = math.MaxUint64
-
 	h.Add(1)
 	go filter_loop(h)
 }
@@ -148,17 +141,13 @@ func filter_update(data C.uintptr_t, settings *C.obs_data_t) {
 func filter_video(data C.uintptr_t, frame *C.struct_obs_source_frame) *C.struct_obs_source_frame {
 	h := cgo.Handle(data).Value().(*teleportFilter)
 
-	if h.offsetVideo == math.MaxUint64 {
-		h.offsetVideo = frame.timestamp
-	}
-
 	if h.SenderGetNumConns() == 0 {
 		return frame
 	}
 
 	p := &Packet{
 		Header: Header{
-			Timestamp: uint64(frame.timestamp - h.offsetVideo),
+			Timestamp: uint64(frame.timestamp),
 		},
 	}
 
@@ -219,10 +208,6 @@ func filter_video(data C.uintptr_t, frame *C.struct_obs_source_frame) *C.struct_
 func filter_audio(data C.uintptr_t, frames *C.struct_obs_audio_data) *C.struct_obs_audio_data {
 	h := cgo.Handle(data).Value().(*teleportFilter)
 
-	if h.offsetAudio == math.MaxUint64 {
-		h.offsetAudio = frames.timestamp
-	}
-
 	if h.SenderGetNumConns() == 0 {
 		return frames
 	}
@@ -232,7 +217,7 @@ func filter_audio(data C.uintptr_t, frames *C.struct_obs_audio_data) *C.struct_o
 
 	p := Packet{
 		Header: Header{
-			Timestamp: uint64(frames.timestamp - h.offsetAudio),
+			Timestamp: uint64(frames.timestamp),
 		},
 	}
 
