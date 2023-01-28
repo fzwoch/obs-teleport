@@ -191,7 +191,7 @@ func (t *teleportSource) newPacket(p *Packet) {
 
 	queueSize := time.Duration(t.queue[len(t.queue)-1].Header.Timestamp - t.queue[0].Header.Timestamp)
 
-	if queueSize > time.Second {
+	if queueSize > 5*time.Second {
 		blog(C.LOG_WARNING, "decode queue exceeded: "+queueSize.String())
 	}
 
