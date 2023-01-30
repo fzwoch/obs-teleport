@@ -86,7 +86,6 @@ package main
 // extern int output_get_dropped_frames(uintptr_t data);
 //
 // extern void frontend_event_cb(enum obs_frontend_event event, uintptr_t data);
-// extern void blog_string(const int log_level, const char* string);
 //
 import "C"
 import (
