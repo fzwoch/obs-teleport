@@ -11,11 +11,11 @@ Just as an alternative option for stream setups with multiple machines wanting t
 
 ## Notes
 
-Obviously a network connection must be made between sender and receiver. So they must be on the same network for peer discovery. **In case discovery is working, but no video or audio is transmitted make sure to disable the network firewall on the sender**.
+Obviously a network connection must be made between sender and receiver. So they must be on the same network for peer discovery. **In case discovery is working, but no video or audio is transmitted make sure to disable the network firewall on the sender side**.
 
 Alternatively you can force the sender to listen on a specific port and set the firewall to allow this port to accept connections.
 
-Having at least 1 Gbps of a stable network connection is kind of required / highly recommendend. You can try to make a lower quality stream work with less bandwidth, but this is then up to you to experiment with.
+**Having at least 1 Gbps of a stable network connection is kind of required / highly recommendend.** You can try to make a lower quality stream work with less bandwidth, but this is then up to you to experiment with.
 
 As of now only the Audio/Video filter mechanic is implemented on the filter feature. Adding it as an effect filter is currently not supported. Revert to the output mode in this case.
 
@@ -24,9 +24,7 @@ As of now only the Audio/Video filter mechanic is implemented on the filter feat
 
 Please refer to the OBS Studio documentation on how and where to install plugins. There are too many platforms and installation options available as the scope of this project could explain and maintain.
 
-Check here for a starting point:
-
-https://obsproject.com/forum/resources/obs-and-obs-studio-install-plugins-windows.421/
+Most platforms do have an installer though that may help you with the installation.
 
 Binaries can be grabbed from the [Releases] section.
 
