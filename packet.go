@@ -257,7 +257,7 @@ func (p *Packet) ToImage(w C.uint32_t, h C.uint32_t, format C.enum_video_format,
 	return
 }
 
-func (p *Packet) ToWAVE(info *C.struct_audio_output_info, frames C.uint32_t, data [C.MAX_AV_PLANES]*C.uint8_t) {
+func (p *Packet) ToWAVE(info *C.struct_audio_output_info, frames C.uint32_t, data [C.MAX_AUDIO_CHANNELS]*C.uint8_t) {
 	var (
 		bytesPerSample int
 		format         C.enum_video_format
