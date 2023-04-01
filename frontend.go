@@ -43,7 +43,7 @@ var (
 	identifier_description_str    = C.CString("Name of the stream. Uses hostname if blank.")
 	port_str                      = C.CString("port")
 	port_readable_str             = C.CString("Port")
-	port_description_str          = C.CString("0 means 'Auto'")
+	port_description_str          = C.CString("0 means 'Auto'. If you set this I really hope you know how to configure your firewall.")
 	quality_str                   = C.CString("quality")
 	quality_readable_str          = C.CString("Quality")
 	quality_warning               = C.CString("quality-warning")
