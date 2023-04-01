@@ -378,6 +378,7 @@ func (h *teleportSource) sourceLoop() {
 				if !errors.Is(err, os.ErrDeadlineExceeded) {
 					time.Sleep(100 * time.Millisecond)
 				}
+				blog(C.LOG_DEBUG, err.Error())
 				continue
 			}
 
