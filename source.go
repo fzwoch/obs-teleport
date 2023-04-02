@@ -369,6 +369,7 @@ func (h *teleportSource) sourceLoop() {
 			}
 
 			if c != nil {
+				blog(C.LOG_INFO, "disconnected from: "+c.RemoteAddr().String())
 				c.Close()
 			}
 			c, err = net.DialTimeout("tcp", service.Address+":"+strconv.Itoa(service.Payload.Port), 100*time.Millisecond)
@@ -381,6 +382,8 @@ func (h *teleportSource) sourceLoop() {
 				blog(C.LOG_DEBUG, err.Error())
 				continue
 			}
+
+			blog(C.LOG_INFO, "connected to: "+c.RemoteAddr().String())
 
 			h.audio.timestamp = 0
 			h.audio.samples_per_sec = 48000
