@@ -40,6 +40,8 @@ func (s *Sender) SenderAdd(c net.Conn) {
 	s.Lock()
 	defer s.Unlock()
 
+	blog(C.LOG_INFO, "connect: "+c.RemoteAddr().String())
+
 	if s.conns == nil {
 		s.conns = make(map[net.Conn]chan []byte)
 	}
@@ -55,6 +57,8 @@ func (s *Sender) SenderAdd(c net.Conn) {
 		for b := range ch {
 			_, err := c.Write(b)
 			if err != nil {
+				blog(C.LOG_INFO, "disconnect: "+c.RemoteAddr().String())
+
 				s.Lock()
 				close(ch)
 				delete(s.conns, c)
