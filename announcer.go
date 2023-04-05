@@ -52,6 +52,7 @@ func (a *Announcer) StartAnnouncer(name string, port int, audioAndVideo bool) {
 			Name:          name,
 			Port:          port,
 			AudioAndVideo: audioAndVideo,
+			Version:       version,
 		}
 
 		b, _ := json.Marshal(j)
