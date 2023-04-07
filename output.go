@@ -71,6 +71,20 @@ func output_start(data C.uintptr_t) C.bool {
 		return false
 	}
 
+	video := C.obs_output_video(h.output)
+	info := C.video_output_get_info(video)
+
+	if info.format == C.VIDEO_FORMAT_NV12 {
+		scale_info := C.struct_video_scale_info{
+			format:     C.VIDEO_FORMAT_I420,
+			width:      info.width,
+			height:     info.height,
+			_range:     info._range,
+			colorspace: info.colorspace,
+		}
+		C.obs_output_set_video_conversion(h.output, &scale_info)
+	}
+
 	h.done = make(chan any)
 	h.laggedFrames = 0
 
@@ -121,7 +135,12 @@ func output_raw_video(data C.uintptr_t, frame *C.struct_video_data) {
 	video := C.obs_output_video(h.output)
 	info := C.video_output_get_info(video)
 
-	p.ToImage(C.obs_output_get_width(h.output), C.obs_output_get_height(h.output), info.format, frame.data)
+	format := info.format
+	if format == C.VIDEO_FORMAT_NV12 {
+		format = C.VIDEO_FORMAT_I420
+	}
+
+	p.ToImage(C.obs_output_get_width(h.output), C.obs_output_get_height(h.output), format, frame.data)
 	if p.Image == nil {
 		return
 	}
