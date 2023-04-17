@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"image"
-	"image/color"
 	"unsafe"
 
 	"github.com/pixiv/go-libjpeg/jpeg"
@@ -24,6 +23,7 @@ type Packet struct {
 	DoneProcessing bool
 	Quality        int
 	Image          image.Image
+	ImageBuffer    *bytes.Buffer
 }
 
 func (p *Packet) ToJPEG() {
@@ -55,8 +55,6 @@ func (p *Packet) ToImage(w C.uint32_t, h C.uint32_t, format C.enum_video_format,
 	width := int(w)
 	height := int(h)
 
-	paddedHeight := height + 16
-
 	rectangle := image.Rectangle{
 		Max: image.Point{
 			X: width,
@@ -66,192 +64,215 @@ func (p *Packet) ToImage(w C.uint32_t, h C.uint32_t, format C.enum_video_format,
 
 	switch format {
 	case C.VIDEO_FORMAT_NV12:
-		p.Image = &image.YCbCr{
-			Rect:           rectangle,
-			YStride:        width,
-			CStride:        width / 2,
-			Y:              make([]byte, width*paddedHeight),
-			Cb:             make([]byte, width*paddedHeight/4),
-			Cr:             make([]byte, width*paddedHeight/4),
-			SubsampleRatio: image.YCbCrSubsampleRatio420,
-		}
+		p.ImageBuffer.Grow(width * height * 3 / 2)
 
-		copy(p.Image.(*image.YCbCr).Y, unsafe.Slice((*byte)(data[0]), width*height))
+		p.ImageBuffer.Write(unsafe.Slice((*byte)(data[0]), width*height))
+
+		Cb := p.ImageBuffer.Bytes()[width*height : width*height+width*height/4]
+		Cr := p.ImageBuffer.Bytes()[width*height+width*height/4 : width*height+width*height/2]
 
 		tmp := unsafe.Slice((*byte)(data[1]), width*height/2)
 
 		for i := 0; i < len(tmp)/2; i++ {
-			p.Image.(*image.YCbCr).Cb[i] = tmp[2*i+0]
-			p.Image.(*image.YCbCr).Cr[i] = tmp[2*i+1]
+			Cb[i] = tmp[2*i+0]
+			Cr[i] = tmp[2*i+1]
 		}
-	case C.VIDEO_FORMAT_I420:
+
 		p.Image = &image.YCbCr{
 			Rect:           rectangle,
 			YStride:        width,
 			CStride:        width / 2,
-			Y:              make([]byte, width*paddedHeight),
-			Cb:             make([]byte, width*paddedHeight/4),
-			Cr:             make([]byte, width*paddedHeight/4),
+			Y:              p.ImageBuffer.Bytes(),
+			Cb:             Cb,
+			Cr:             Cr,
 			SubsampleRatio: image.YCbCrSubsampleRatio420,
 		}
+	case C.VIDEO_FORMAT_I420:
+		p.ImageBuffer.Write(unsafe.Slice((*byte)(data[0]), width*height))
+		p.ImageBuffer.Write(unsafe.Slice((*byte)(data[1]), width*height/4))
+		p.ImageBuffer.Write(unsafe.Slice((*byte)(data[2]), width*height/4))
 
-		copy(p.Image.(*image.YCbCr).Y, unsafe.Slice((*byte)(data[0]), width*height))
-		copy(p.Image.(*image.YCbCr).Cb, unsafe.Slice((*byte)(data[1]), width*height/4))
-		copy(p.Image.(*image.YCbCr).Cr, unsafe.Slice((*byte)(data[2]), width*height/4))
+		p.Image = &image.YCbCr{
+			Rect:           rectangle,
+			YStride:        width,
+			CStride:        width / 2,
+			Y:              p.ImageBuffer.Bytes()[:width*height],
+			Cb:             p.ImageBuffer.Bytes()[width*height : width*height+width*height/4],
+			Cr:             p.ImageBuffer.Bytes()[width*height+width*height/4 : width*height+width*height/2],
+			SubsampleRatio: image.YCbCrSubsampleRatio420,
+		}
 	case C.VIDEO_FORMAT_I422:
-		p.Image = &image.YCbCr{
-			Rect:           rectangle,
-			YStride:        width,
-			CStride:        width / 2,
-			Y:              make([]byte, width*paddedHeight),
-			Cb:             make([]byte, width*paddedHeight/2),
-			Cr:             make([]byte, width*paddedHeight/2),
-			SubsampleRatio: image.YCbCrSubsampleRatio422,
-		}
+		p.ImageBuffer.Write(unsafe.Slice((*byte)(data[0]), width*height))
+		p.ImageBuffer.Write(unsafe.Slice((*byte)(data[1]), width*height/2))
+		p.ImageBuffer.Write(unsafe.Slice((*byte)(data[2]), width*height/2))
 
-		copy(p.Image.(*image.YCbCr).Y, unsafe.Slice((*byte)(data[0]), width*height))
-		copy(p.Image.(*image.YCbCr).Cb, unsafe.Slice((*byte)(data[1]), width*height/2))
-		copy(p.Image.(*image.YCbCr).Cr, unsafe.Slice((*byte)(data[2]), width*height/2))
-	case C.VIDEO_FORMAT_YVYU:
 		p.Image = &image.YCbCr{
 			Rect:           rectangle,
 			YStride:        width,
 			CStride:        width / 2,
-			Y:              make([]byte, width*paddedHeight),
-			Cb:             make([]byte, width*paddedHeight/2),
-			Cr:             make([]byte, width*paddedHeight/2),
+			Y:              p.ImageBuffer.Bytes()[:width*height],
+			Cb:             p.ImageBuffer.Bytes()[width*height : width*height+width*height/2],
+			Cr:             p.ImageBuffer.Bytes()[width*height+width*height/2:],
 			SubsampleRatio: image.YCbCrSubsampleRatio422,
 		}
+	case C.VIDEO_FORMAT_YVYU:
+		p.ImageBuffer.Grow(width * height * 2)
+
+		Y := p.ImageBuffer.Bytes()[:width*height]
+		Cb := p.ImageBuffer.Bytes()[width*height : width*height+width*height/2]
+		Cr := p.ImageBuffer.Bytes()[width*height+width*height/2 : width*height*2]
 
 		tmp := unsafe.Slice((*byte)(data[0]), width*height*2)
 
 		for i := 0; i < width*height; i++ {
-			p.Image.(*image.YCbCr).Y[i] = tmp[i*2]
+			Y[i] = tmp[i*2]
 		}
 		for i := 0; i < width*height/2; i++ {
-			p.Image.(*image.YCbCr).Cb[i] = tmp[4*i+3]
-			p.Image.(*image.YCbCr).Cr[i] = tmp[4*i+1]
+			Cb[i] = tmp[4*i+3]
+			Cr[i] = tmp[4*i+1]
+		}
+
+		p.Image = &image.YCbCr{
+			Rect:           rectangle,
+			YStride:        width,
+			CStride:        width / 2,
+			Y:              Y,
+			Cb:             Cb,
+			Cr:             Cr,
+			SubsampleRatio: image.YCbCrSubsampleRatio422,
 		}
 	case C.VIDEO_FORMAT_YUY2:
-		p.Image = &image.YCbCr{
-			Rect:           rectangle,
-			YStride:        width,
-			CStride:        width / 2,
-			Y:              make([]byte, width*paddedHeight),
-			Cb:             make([]byte, width*paddedHeight/2),
-			Cr:             make([]byte, width*paddedHeight/2),
-			SubsampleRatio: image.YCbCrSubsampleRatio422,
-		}
+		p.ImageBuffer.Grow(width * height * 2)
+
+		Y := p.ImageBuffer.Bytes()[:width*height]
+		Cb := p.ImageBuffer.Bytes()[width*height : width*height+width*height/2]
+		Cr := p.ImageBuffer.Bytes()[width*height+width*height/2 : width*height*2]
 
 		tmp := unsafe.Slice((*byte)(data[0]), width*height*2)
 
 		for i := 0; i < width*height; i++ {
-			p.Image.(*image.YCbCr).Y[i] = tmp[i*2]
+			Y[i] = tmp[i*2]
 		}
 		for i := 0; i < width*height/2; i++ {
-			p.Image.(*image.YCbCr).Cb[i] = tmp[4*i+1]
-			p.Image.(*image.YCbCr).Cr[i] = tmp[4*i+3]
+			Cb[i] = tmp[4*i+1]
+			Cr[i] = tmp[4*i+3]
+		}
+
+		p.Image = &image.YCbCr{
+			Rect:           rectangle,
+			YStride:        width,
+			CStride:        width / 2,
+			Y:              Y,
+			Cb:             Cb,
+			Cr:             Cr,
+			SubsampleRatio: image.YCbCrSubsampleRatio422,
 		}
 	case C.VIDEO_FORMAT_UYVY:
-		p.Image = &image.YCbCr{
-			Rect:           rectangle,
-			YStride:        width,
-			CStride:        width / 2,
-			Y:              make([]byte, width*paddedHeight),
-			Cb:             make([]byte, width*paddedHeight/2),
-			Cr:             make([]byte, width*paddedHeight/2),
-			SubsampleRatio: image.YCbCrSubsampleRatio422,
-		}
+		p.ImageBuffer.Grow(width * height * 2)
+
+		Y := p.ImageBuffer.Bytes()[:width*height]
+		Cb := p.ImageBuffer.Bytes()[width*height : width*height+width*height/2]
+		Cr := p.ImageBuffer.Bytes()[width*height+width*height/2 : width*height*2]
 
 		tmp := unsafe.Slice((*byte)(data[0]), width*height*2)
 
 		for i := 0; i < width*height; i++ {
-			p.Image.(*image.YCbCr).Y[i] = tmp[i*2+1]
+			Y[i] = tmp[i*2+1]
 		}
 		for i := 0; i < width*height/2; i++ {
-			p.Image.(*image.YCbCr).Cb[i] = tmp[4*i+0]
-			p.Image.(*image.YCbCr).Cr[i] = tmp[4*i+2]
+			Cb[i] = tmp[4*i+0]
+			Cr[i] = tmp[4*i+2]
+		}
+
+		p.Image = &image.YCbCr{
+			Rect:           rectangle,
+			YStride:        width,
+			CStride:        width / 2,
+			Y:              Y,
+			Cb:             Cb,
+			Cr:             Cr,
+			SubsampleRatio: image.YCbCrSubsampleRatio422,
 		}
 	case C.VIDEO_FORMAT_I444:
+		p.ImageBuffer.Write(unsafe.Slice((*byte)(data[0]), width*height))
+		p.ImageBuffer.Write(unsafe.Slice((*byte)(data[1]), width*height))
+		p.ImageBuffer.Write(unsafe.Slice((*byte)(data[2]), width*height))
+
 		p.Image = &image.YCbCr{
 			Rect:           rectangle,
 			YStride:        width,
 			CStride:        width,
-			Y:              make([]byte, width*paddedHeight),
-			Cb:             make([]byte, width*paddedHeight),
-			Cr:             make([]byte, width*paddedHeight),
+			Y:              p.ImageBuffer.Bytes()[:width*height],
+			Cb:             p.ImageBuffer.Bytes()[width*height : width*height*2],
+			Cr:             p.ImageBuffer.Bytes()[width*height*2 : width*height*3],
 			SubsampleRatio: image.YCbCrSubsampleRatio444,
 		}
-
-		copy(p.Image.(*image.YCbCr).Y, unsafe.Slice((*byte)(data[0]), width*height))
-		copy(p.Image.(*image.YCbCr).Cb, unsafe.Slice((*byte)(data[1]), width*height))
-		copy(p.Image.(*image.YCbCr).Cr, unsafe.Slice((*byte)(data[2]), width*height))
 	case C.VIDEO_FORMAT_BGRX:
-		p.Image = &image.RGBA{
-			Rect:   rectangle,
-			Stride: width * 4,
-			Pix:    make([]byte, width*paddedHeight*4),
-		}
+		p.ImageBuffer.Grow(width * height * 4)
+
+		Pix := p.ImageBuffer.Bytes()[:width*height*4]
 
 		tmp := unsafe.Slice((*byte)(data[0]), width*height*4)
 
 		for i := 0; i < len(tmp); i += 4 {
-			p.Image.(*image.RGBA).Pix[i+0] = tmp[i+2]
-			p.Image.(*image.RGBA).Pix[i+1] = tmp[i+1]
-			p.Image.(*image.RGBA).Pix[i+2] = tmp[i+0]
-			p.Image.(*image.RGBA).Pix[i+3] = 0xff
+			Pix[i+0] = tmp[i+2]
+			Pix[i+1] = tmp[i+1]
+			Pix[i+2] = tmp[i+0]
+			Pix[i+3] = 0xff
+		}
+
+		p.Image = &image.RGBA{
+			Rect:   rectangle,
+			Stride: width * 4,
+			Pix:    Pix,
 		}
 	case C.VIDEO_FORMAT_BGRA:
-		p.Image = &image.RGBA{
-			Rect:   rectangle,
-			Stride: width * 4,
-			Pix:    make([]byte, width*paddedHeight*4),
-		}
+		p.ImageBuffer.Grow(width * height * 4)
+
+		Pix := p.ImageBuffer.Bytes()[:width*height*4]
 
 		tmp := unsafe.Slice((*byte)(data[0]), width*height*4)
 
 		for i := 0; i < len(tmp); i += 4 {
-			p.Image.(*image.RGBA).Pix[i+0] = tmp[i+2]
-			p.Image.(*image.RGBA).Pix[i+1] = tmp[i+1]
-			p.Image.(*image.RGBA).Pix[i+2] = tmp[i+0]
-			p.Image.(*image.RGBA).Pix[i+3] = tmp[i+3]
+			Pix[i+0] = tmp[i+2]
+			Pix[i+1] = tmp[i+1]
+			Pix[i+2] = tmp[i+0]
+			Pix[i+3] = tmp[i+3]
+		}
+
+		p.Image = &image.RGBA{
+			Rect:   rectangle,
+			Stride: width * 4,
+			Pix:    Pix,
 		}
 	case C.VIDEO_FORMAT_BGR3:
-		p.Image = &rgb.Image{
-			Rect:   rectangle,
-			Stride: width * 3,
-			Pix:    make([]byte, width*paddedHeight*3),
-		}
+		p.ImageBuffer.Grow(width * height * 3)
+
+		Pix := p.ImageBuffer.Bytes()[:width*height*3]
 
 		tmp := unsafe.Slice((*byte)(data[0]), width*height*3)
 
 		for i := 0; i < len(tmp); i += 3 {
-			p.Image.(*rgb.Image).Pix[i+0] = tmp[i+2]
-			p.Image.(*rgb.Image).Pix[i+1] = tmp[i+1]
-			p.Image.(*rgb.Image).Pix[i+2] = tmp[i+0]
+			Pix[i+0] = tmp[i+2]
+			Pix[i+1] = tmp[i+1]
+			Pix[i+2] = tmp[i+0]
+		}
+
+		p.Image = &rgb.Image{
+			Rect:   rectangle,
+			Stride: width * 3,
+			Pix:    Pix,
 		}
 	case C.VIDEO_FORMAT_RGBA:
+		p.ImageBuffer.Write(unsafe.Slice((*byte)(data[0]), width*height*4))
+
 		p.Image = &image.RGBA{
 			Rect:   rectangle,
 			Stride: width * 4,
-			Pix:    make([]byte, width*paddedHeight*4),
+			Pix:    p.ImageBuffer.Bytes(),
 		}
-
-		copy(p.Image.(*image.RGBA).Pix, unsafe.Slice((*byte)(data[0]), width*height*4))
 	default:
-		p.Image = image.NewRGBA(
-			rectangle,
-		)
-		for x := 0; x < width; x++ {
-			for y := 0; y < height; y++ {
-				color := color.RGBA{
-					uint8(255 * x / width),
-					uint8(255 * y / height),
-					55,
-					255}
-				p.Image.(*image.RGBA).Set(x, y, color)
-			}
-		}
+		panic("")
 	}
 
 	return

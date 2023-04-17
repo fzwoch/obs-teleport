@@ -25,6 +25,7 @@ package main
 //
 import "C"
 import (
+	"bytes"
 	"net"
 	"runtime/cgo"
 	"strconv"
@@ -38,6 +39,7 @@ type teleportOutput struct {
 	sync.WaitGroup
 	Announcer
 	Sender
+	pool         *Pool
 	done         chan any
 	output       *C.obs_output_t
 	queue        []*Packet
@@ -53,6 +55,7 @@ func output_get_name(type_data C.uintptr_t) *C.char {
 func output_create(settings *C.obs_data_t, output *C.obs_output_t) C.uintptr_t {
 	h := &teleportOutput{
 		output: output,
+		pool:   NewPool(10),
 	}
 
 	return C.uintptr_t(cgo.NewHandle(h))
@@ -74,7 +77,11 @@ func output_start(data C.uintptr_t) C.bool {
 	video := C.obs_output_video(h.output)
 	info := C.video_output_get_info(video)
 
-	if info.format == C.VIDEO_FORMAT_NV12 {
+	switch info.format {
+	case C.VIDEO_FORMAT_I420:
+	case C.VIDEO_FORMAT_I444:
+	case C.VIDEO_FORMAT_BGRA:
+	default:
 		scale_info := C.struct_video_scale_info{
 			format:     C.VIDEO_FORMAT_I420,
 			width:      info.width,
@@ -126,6 +133,7 @@ func output_raw_video(data C.uintptr_t, frame *C.struct_video_data) {
 		Header: Header{
 			Timestamp: uint64(frame.timestamp),
 		},
+		ImageBuffer: h.pool.Get().(*bytes.Buffer),
 	}
 
 	settings := C.obs_source_get_settings(dummy)
@@ -136,7 +144,12 @@ func output_raw_video(data C.uintptr_t, frame *C.struct_video_data) {
 	info := C.video_output_get_info(video)
 
 	format := info.format
-	if format == C.VIDEO_FORMAT_NV12 {
+
+	switch info.format {
+	case C.VIDEO_FORMAT_I420:
+	case C.VIDEO_FORMAT_I444:
+	case C.VIDEO_FORMAT_BGRA:
+	default:
 		format = C.VIDEO_FORMAT_I420
 	}
 
@@ -171,6 +184,7 @@ func output_raw_video(data C.uintptr_t, frame *C.struct_video_data) {
 
 		for len(h.queue) > 0 && h.queue[0].DoneProcessing {
 			h.SenderSend(h.queue[0].Buffer)
+			h.pool.Put(h.queue[0].ImageBuffer)
 			h.queue = h.queue[1:]
 		}
 	}(p)

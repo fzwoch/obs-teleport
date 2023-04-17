@@ -29,6 +29,7 @@ package main
 //
 import "C"
 import (
+	"bytes"
 	"image"
 	"math"
 	"net"
@@ -44,6 +45,7 @@ type teleportFilter struct {
 	sync.WaitGroup
 	Announcer
 	Sender
+	pool   *Pool
 	done   chan any
 	filter *C.obs_source_t
 	queue  []*Packet
@@ -69,6 +71,7 @@ func filter_create(settings *C.obs_data_t, source *C.obs_source_t) C.uintptr_t {
 	h := &teleportFilter{
 		done:   make(chan any),
 		filter: source,
+		pool:   NewPool(10),
 	}
 
 	h.Add(1)
@@ -149,6 +152,7 @@ func filter_video(data C.uintptr_t, frame *C.struct_obs_source_frame) *C.struct_
 		Header: Header{
 			Timestamp: uint64(frame.timestamp),
 		},
+		ImageBuffer: h.pool.Get().(*bytes.Buffer),
 	}
 
 	settings := C.obs_source_get_settings(h.filter)
@@ -197,6 +201,7 @@ func filter_video(data C.uintptr_t, frame *C.struct_obs_source_frame) *C.struct_
 
 		for len(h.queue) > 0 && h.queue[0].DoneProcessing {
 			h.SenderSend(h.queue[0].Buffer)
+			h.pool.Put(h.queue[0].ImageBuffer)
 			h.queue = h.queue[1:]
 		}
 	}(p)
