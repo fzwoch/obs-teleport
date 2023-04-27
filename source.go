@@ -234,8 +234,9 @@ func (t *teleportSource) newPacket(p *Packet) {
 						break
 					}
 				}
-				t.offset = p.Header.Timestamp
 				t.isStart = false
+				t.offset = t.queue[0].Header.Timestamp
+				continue
 			}
 
 			if p.IsAudio {
