@@ -212,7 +212,7 @@ func (t *teleportSource) newPacket(p *Packet) {
 		p.DoneProcessing = true
 
 		for len(t.queue) > 0 && t.queue[0].DoneProcessing {
-			p := t.queue[0]
+			p = t.queue[0]
 
 			if t.isAudioAndVideo {
 				hasAudioAndVideo := false
