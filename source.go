@@ -61,6 +61,7 @@ type teleportSource struct {
 	audio           *C.struct_obs_source_audio
 	isStart         bool
 	isAudioAndVideo bool
+	offset          uint64
 }
 
 var (
@@ -233,11 +234,12 @@ func (t *teleportSource) newPacket(p *Packet) {
 						break
 					}
 				}
+				t.offset = p.Header.Timestamp
 				t.isStart = false
 			}
 
 			if p.IsAudio {
-				t.audio.timestamp = C.uint64_t(p.Header.Timestamp)
+				t.audio.timestamp = C.uint64_t(p.Header.Timestamp - t.offset)
 				t.audio.samples_per_sec = C.uint(p.WaveHeader.SampleRate)
 				t.audio.speakers = uint32(p.WaveHeader.Speakers)
 				t.audio.format = uint32(p.WaveHeader.Format)
@@ -276,7 +278,7 @@ func (t *teleportSource) newPacket(p *Packet) {
 
 					t.frame.width = C.uint(p.Image.Bounds().Dx())
 					t.frame.height = C.uint(p.Image.Bounds().Dy())
-					t.frame.timestamp = C.uint64_t(p.Header.Timestamp)
+					t.frame.timestamp = C.uint64_t(p.Header.Timestamp - t.offset)
 
 					copy(unsafe.Slice((*float32)(&t.frame.color_matrix[0]), 16), p.ImageHeader.ColorMatrix[:])
 					copy(unsafe.Slice((*float32)(&t.frame.color_range_min[0]), 3), p.ImageHeader.ColorRangeMin[:])
