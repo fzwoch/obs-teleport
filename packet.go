@@ -1,7 +1,7 @@
 package main
 
-// #cgo CFLAGS: -Ilibjpeg-turbo
-// #cgo LDFLAGS: -lturbojpeg -Llibjpeg-turbo/linux-x86_64/
+//
+// #cgo LDFLAGS: -lturbojpeg
 //
 // #include <obs-module.h>
 // #include <turbojpeg.h>
@@ -104,7 +104,7 @@ func (p *Packet) ToJPEG(pool *Pool) {
 func (p *Packet) FromJPEG(pool *Pool) {
 	ctx := C.tj3Init(C.TJINIT_DECOMPRESS)
 
-	C.tj3DecompressHeader(ctx, (*C.uchar)(&p.Buffer[0]), C.ulong(len(p.Buffer)))
+	C.tj3DecompressHeader(ctx, (*C.uchar)(&p.Buffer[0]), C.size_t(len(p.Buffer)))
 
 	width := int(C.tj3Get(ctx, C.TJPARAM_JPEGWIDTH))
 	height := int(C.tj3Get(ctx, C.TJPARAM_JPEGHEIGHT))
@@ -175,7 +175,7 @@ func (p *Packet) FromJPEG(pool *Pool) {
 			panic("")
 		}
 
-		C.tj3DecompressToYUV8(ctx, (*C.uchar)(&p.Buffer[0]), C.ulong(len(p.Buffer)), (*C.uchar)(&buf[0]), 1)
+		C.tj3DecompressToYUV8(ctx, (*C.uchar)(&p.Buffer[0]), C.size_t(len(p.Buffer)), (*C.uchar)(&buf[0]), 1)
 	case C.TJCS_RGB:
 		s := width * height * 3
 
@@ -191,7 +191,7 @@ func (p *Packet) FromJPEG(pool *Pool) {
 			Pix:    buf,
 		}
 
-		C.tj3Decompress8(ctx, (*C.uchar)(&p.Buffer[0]), C.ulong(len(p.Buffer)), (*C.uchar)(&buf[0]), 0, C.TJCS_RGB)
+		C.tj3Decompress8(ctx, (*C.uchar)(&p.Buffer[0]), C.size_t(len(p.Buffer)), (*C.uchar)(&buf[0]), 0, C.TJCS_RGB)
 	default:
 		panic("")
 	}
