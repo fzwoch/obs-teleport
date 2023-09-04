@@ -27,6 +27,7 @@ package main
 //
 import "C"
 import (
+	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -62,6 +63,7 @@ type teleportSource struct {
 	isStart         bool
 	isAudioAndVideo bool
 	offset          uint64
+	pool            *Pool
 }
 
 var (
@@ -84,6 +86,7 @@ func source_create(settings *C.obs_data_t, source *C.obs_source_t) C.uintptr_t {
 		source:   source,
 		frame:    (*C.struct_obs_source_frame)(C.bzalloc(C.sizeof_struct_obs_source_frame)),
 		audio:    (*C.struct_obs_source_audio)(C.bzalloc(C.sizeof_struct_obs_source_audio)),
+		pool:     NewPool(10),
 	}
 
 	h.Add(1)
@@ -203,7 +206,7 @@ func (t *teleportSource) newPacket(p *Packet) {
 		defer t.Done()
 
 		if !p.IsAudio {
-			p.FromJPEG()
+			p.FromJPEG(t.pool)
 		}
 
 		t.queueLock.Lock()
@@ -287,10 +290,39 @@ func (t *teleportSource) newPacket(p *Packet) {
 
 					C.obs_source_output_video(t.source, t.frame)
 
+					t.pool.Put(bytes.NewBuffer(img.Y))
+
 					t.frame.data[0] = nil
 					t.frame.data[1] = nil
 					t.frame.data[2] = nil
+				case *image.RGBA:
+					img := p.Image.(*image.RGBA)
+
+					t.frame.linesize[0] = C.uint(img.Stride)
+					t.frame.data[0] = (*C.uint8_t)(unsafe.Pointer(&img.Pix[0]))
+					t.frame.format = C.VIDEO_FORMAT_BGR3
+
+					if p.ImageHeader.ColorRangeMin == [3]float32{0, 0, 0} && p.ImageHeader.ColorRangeMax == [3]float32{1, 1, 1} {
+						t.frame.full_range = true
+					} else {
+						t.frame.full_range = false
+					}
+
+					t.frame.width = C.uint(p.Image.Bounds().Dx())
+					t.frame.height = C.uint(p.Image.Bounds().Dy())
+					t.frame.timestamp = C.uint64_t(p.Header.Timestamp - t.offset)
+
+					copy(unsafe.Slice((*float32)(&t.frame.color_matrix[0]), 16), p.ImageHeader.ColorMatrix[:])
+					copy(unsafe.Slice((*float32)(&t.frame.color_range_min[0]), 3), p.ImageHeader.ColorRangeMin[:])
+					copy(unsafe.Slice((*float32)(&t.frame.color_range_max[0]), 3), p.ImageHeader.ColorRangeMax[:])
+
+					C.obs_source_output_video(t.source, t.frame)
+
+					t.pool.Put(bytes.NewBuffer(img.Pix))
+
+					t.frame.data[0] = nil
 				default:
+					panic("")
 				}
 			}
 

@@ -111,7 +111,7 @@ func filter_get_properties(data C.uintptr_t) *C.obs_properties_t {
 	prop = C.obs_properties_add_int(properties, port_str, port_readable_str, 0, math.MaxUint16, 1)
 	C.obs_property_set_long_description(prop, port_description_str)
 
-	prop = C.obs_properties_add_int_slider(properties, quality_str, quality_readable_str, 0, 100, 1)
+	prop = C.obs_properties_add_int_slider(properties, quality_str, quality_readable_str, 1, 100, 1)
 	C.obs_property_set_modified_callback(prop, C.obs_property_modified_t(unsafe.Pointer(C.quality_warning_callback)))
 
 	C.obs_properties_add_button(properties, apply_str, apply_str, C.obs_property_clicked_t(unsafe.Pointer(C.filter_apply_clicked)))
@@ -192,7 +192,7 @@ func filter_video(data C.uintptr_t, frame *C.struct_obs_source_frame) *C.struct_
 	go func(p *Packet) {
 		defer h.Done()
 
-		p.ToJPEG()
+		p.ToJPEG(h.pool)
 
 		h.Lock()
 		defer h.Unlock()

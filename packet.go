@@ -1,17 +1,18 @@
 package main
 
+// #cgo CFLAGS: -Ilibjpeg-turbo
+// #cgo LDFLAGS: -lturbojpeg -Llibjpeg-turbo/linux-x86_64/
 //
 // #include <obs-module.h>
+// #include <turbojpeg.h>
 //
 import "C"
 import (
 	"bytes"
 	"encoding/binary"
 	"image"
+	"runtime"
 	"unsafe"
-
-	"github.com/pixiv/go-libjpeg/jpeg"
-	"github.com/pixiv/go-libjpeg/rgb"
 )
 
 type Packet struct {
@@ -26,29 +27,176 @@ type Packet struct {
 	ImageBuffer    *bytes.Buffer
 }
 
-func (p *Packet) ToJPEG() {
-	b := bytes.Buffer{}
+func (p *Packet) ToJPEG(pool *Pool) {
+	ctx := C.tj3Init(C.TJINIT_COMPRESS)
 
-	jpeg.Encode(&b, p.Image, &jpeg.EncoderOptions{
-		Quality: p.Quality,
-	})
+	C.tj3Set(ctx, C.TJPARAM_NOREALLOC, 1)
+	C.tj3Set(ctx, C.TJPARAM_QUALITY, C.int(p.Quality))
+
+	var (
+		buf         []byte
+		subsampling C.int
+		tmp         *C.uchar
+		size        C.size_t
+		pinner      runtime.Pinner
+	)
+
+	switch p.Image.(type) {
+	case *image.YCbCr:
+		img := p.Image.(*image.YCbCr)
+
+		switch img.SubsampleRatio {
+		case image.YCbCrSubsampleRatio420:
+			subsampling = C.TJSAMP_420
+		case image.YCbCrSubsampleRatio422:
+			subsampling = C.TJSAMP_422
+		case image.YCbCrSubsampleRatio444:
+			subsampling = C.TJSAMP_444
+		default:
+			panic("")
+		}
+
+		C.tj3Set(ctx, C.TJPARAM_SUBSAMP, subsampling)
+
+		s := C.tj3JPEGBufSize(C.int(img.Rect.Dx()), C.int(img.Rect.Dy()), subsampling)
+
+		buf = make([]byte, int(s))
+		tmp = (*C.uchar)(&buf[0])
+
+		pinner.Pin(tmp)
+		C.tj3CompressFromYUV8(ctx, (*C.uchar)(&img.Y[0]), C.int(img.Rect.Dx()), 1, C.int(img.Rect.Dy()), &tmp, &size)
+		pinner.Unpin()
+	case *image.RGBA:
+		img := p.Image.(*image.RGBA)
+
+		C.tj3Set(ctx, C.TJPARAM_SUBSAMP, C.TJSAMP_444)
+		C.tj3Set(ctx, C.TJPARAM_COLORSPACE, C.TJCS_RGB)
+
+		s := C.tj3JPEGBufSize(C.int(img.Rect.Dx()), C.int(img.Rect.Dy()), C.TJSAMP_444)
+
+		buf = make([]byte, int(s))
+		tmp = (*C.uchar)(&buf[0])
+
+		pinner.Pin(tmp)
+		C.tj3Compress8(ctx, (*C.uchar)(&img.Pix[0]), C.int(img.Rect.Dx()), 0, C.int(img.Rect.Dy()), C.TJPF_BGRX, &tmp, &size)
+		pinner.Unpin()
+	default:
+		panic("")
+	}
+
+	buf = buf[:int(size)]
+
+	C.tj3Destroy(ctx)
 
 	p.Image = nil
 
 	p.Header.Type = [4]byte{'J', 'P', 'E', 'G'}
-	p.Header.Size = int32(b.Len())
+	p.Header.Size = int32(len(buf))
 
 	h := bytes.Buffer{}
 
 	binary.Write(&h, binary.LittleEndian, &p.Header)
 	binary.Write(&h, binary.LittleEndian, &p.ImageHeader)
 
-	p.Buffer = append(h.Bytes(), b.Bytes()...)
+	p.Buffer = append(h.Bytes(), buf...)
 }
 
-func (p *Packet) FromJPEG() {
-	r := bytes.NewReader(p.Buffer)
-	p.Image, _ = jpeg.Decode(r, &jpeg.DecoderOptions{})
+func (p *Packet) FromJPEG(pool *Pool) {
+	ctx := C.tj3Init(C.TJINIT_DECOMPRESS)
+
+	C.tj3DecompressHeader(ctx, (*C.uchar)(&p.Buffer[0]), C.ulong(len(p.Buffer)))
+
+	width := int(C.tj3Get(ctx, C.TJPARAM_JPEGWIDTH))
+	height := int(C.tj3Get(ctx, C.TJPARAM_JPEGHEIGHT))
+	subsampling := C.tj3Get(ctx, C.TJPARAM_SUBSAMP)
+	cs := C.tj3Get(ctx, C.TJPARAM_COLORSPACE)
+
+	rectangle := image.Rectangle{
+		Max: image.Point{
+			X: width,
+			Y: height,
+		},
+	}
+
+	switch cs {
+	case C.TJCS_YCbCr:
+		s := C.tj3YUVBufSize(C.int(width), 1, C.int(height), subsampling)
+
+		b := pool.Get().(*bytes.Buffer)
+		b.Grow(int(s))
+
+		buf := b.Bytes()
+		buf = buf[:int(s)]
+
+		switch subsampling {
+		case C.TJSAMP_420:
+			Y := buf[:width*height]
+			Cb := buf[width*height : width*height+width*height/4]
+			Cr := buf[width*height+width*height/4:]
+
+			p.Image = &image.YCbCr{
+				Rect:           rectangle,
+				YStride:        width,
+				CStride:        width / 2,
+				Y:              Y,
+				Cb:             Cb,
+				Cr:             Cr,
+				SubsampleRatio: image.YCbCrSubsampleRatio420,
+			}
+		case C.TJSAMP_422:
+			Y := buf[:width*height]
+			Cb := buf[width*height : width*height+width*height/2]
+			Cr := buf[width*height+width*height/2:]
+
+			p.Image = &image.YCbCr{
+				Rect:           rectangle,
+				YStride:        width,
+				CStride:        width / 2,
+				Y:              Y,
+				Cb:             Cb,
+				Cr:             Cr,
+				SubsampleRatio: image.YCbCrSubsampleRatio422,
+			}
+		case C.TJSAMP_444:
+			Y := buf[:width*height]
+			Cb := buf[width*height : width*height*2]
+			Cr := buf[width*height*2:]
+
+			p.Image = &image.YCbCr{
+				Rect:           rectangle,
+				YStride:        width,
+				CStride:        width,
+				Y:              Y,
+				Cb:             Cb,
+				Cr:             Cr,
+				SubsampleRatio: image.YCbCrSubsampleRatio422,
+			}
+		default:
+			panic("")
+		}
+
+		C.tj3DecompressToYUV8(ctx, (*C.uchar)(&p.Buffer[0]), C.ulong(len(p.Buffer)), (*C.uchar)(&buf[0]), 1)
+	case C.TJCS_RGB:
+		s := width * height * 3
+
+		b := pool.Get().(*bytes.Buffer)
+		b.Grow(int(s))
+
+		buf := b.Bytes()
+		buf = buf[:int(s)]
+
+		p.Image = &image.RGBA{
+			Rect:   rectangle,
+			Stride: width * 3,
+			Pix:    buf,
+		}
+
+		C.tj3Decompress8(ctx, (*C.uchar)(&p.Buffer[0]), C.ulong(len(p.Buffer)), (*C.uchar)(&buf[0]), 0, C.TJCS_RGB)
+	default:
+		panic("")
+	}
+
+	C.tj3Destroy(ctx)
 }
 
 func (p *Packet) ToImage(w C.uint32_t, h C.uint32_t, format C.enum_video_format, data [C.MAX_AV_PLANES]*C.uint8_t) {
@@ -218,7 +366,6 @@ func (p *Packet) ToImage(w C.uint32_t, h C.uint32_t, format C.enum_video_format,
 			Pix[i+0] = tmp[i+2]
 			Pix[i+1] = tmp[i+1]
 			Pix[i+2] = tmp[i+0]
-			Pix[i+3] = 0xff
 		}
 
 		p.Image = &image.RGBA{
@@ -226,6 +373,7 @@ func (p *Packet) ToImage(w C.uint32_t, h C.uint32_t, format C.enum_video_format,
 			Stride: width * 4,
 			Pix:    Pix,
 		}
+
 	case C.VIDEO_FORMAT_BGRA:
 		p.ImageBuffer.Grow(width * height * 4)
 
@@ -246,21 +394,21 @@ func (p *Packet) ToImage(w C.uint32_t, h C.uint32_t, format C.enum_video_format,
 			Pix:    Pix,
 		}
 	case C.VIDEO_FORMAT_BGR3:
-		p.ImageBuffer.Grow(width * height * 3)
+		p.ImageBuffer.Grow(width * height * 4)
 
-		Pix := p.ImageBuffer.Bytes()[:width*height*3]
+		Pix := p.ImageBuffer.Bytes()[:width*height*4]
 
-		tmp := unsafe.Slice((*byte)(data[0]), width*height*3)
+		tmp := unsafe.Slice((*byte)(data[0]), width*height*4)
 
-		for i := 0; i < len(tmp); i += 3 {
+		for i := 0; i < len(tmp); i += 4 {
 			Pix[i+0] = tmp[i+2]
 			Pix[i+1] = tmp[i+1]
 			Pix[i+2] = tmp[i+0]
 		}
 
-		p.Image = &rgb.Image{
+		p.Image = &image.RGBA{
 			Rect:   rectangle,
-			Stride: width * 3,
+			Stride: width * 4,
 			Pix:    Pix,
 		}
 	case C.VIDEO_FORMAT_RGBA:

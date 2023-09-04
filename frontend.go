@@ -147,7 +147,7 @@ func dummy_get_properties(data C.uintptr_t) *C.obs_properties_t {
 	prop = C.obs_properties_add_int(properties, port_str, port_readable_str, 0, math.MaxUint16, 1)
 	C.obs_property_set_long_description(prop, port_description_str)
 
-	prop = C.obs_properties_add_int_slider(properties, quality_str, quality_readable_str, 0, 100, 1)
+	prop = C.obs_properties_add_int_slider(properties, quality_str, quality_readable_str, 1, 100, 1)
 	C.obs_property_set_modified_callback(prop, C.obs_property_modified_t(unsafe.Pointer(C.quality_warning_callback)))
 
 	prop = C.obs_properties_add_text(properties, quality_warning, quality_warning_str, C.OBS_TEXT_INFO)

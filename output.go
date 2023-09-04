@@ -175,7 +175,7 @@ func output_raw_video(data C.uintptr_t, frame *C.struct_video_data) {
 	go func(p *Packet) {
 		defer h.Done()
 
-		p.ToJPEG()
+		p.ToJPEG(h.pool)
 
 		h.Lock()
 		defer h.Unlock()
