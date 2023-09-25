@@ -326,6 +326,7 @@ func (t *teleportSource) newPacket(p *Packet) {
 				}
 			}
 
+			t.queue[0] = nil
 			t.queue = t.queue[1:]
 		}
 	}(p)

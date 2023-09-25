@@ -185,6 +185,8 @@ func output_raw_video(data C.uintptr_t, frame *C.struct_video_data) {
 		for len(h.queue) > 0 && h.queue[0].DoneProcessing {
 			h.SenderSend(h.queue[0].Buffer)
 			h.pool.Put(h.queue[0].ImageBuffer)
+
+			h.queue[0] = nil
 			h.queue = h.queue[1:]
 		}
 	}(p)
