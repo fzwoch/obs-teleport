@@ -33,6 +33,7 @@ import (
 	"fmt"
 	"image"
 	"io"
+	"math"
 	"net"
 	"os"
 	"runtime/cgo"
@@ -424,7 +425,7 @@ func (h *teleportSource) sourceLoop() {
 				blog(C.LOG_WARNING, "version mismatch: "+service.Payload.Version+" != "+version)
 			}
 
-			h.audio.timestamp = 0
+			h.audio.timestamp = math.MaxUint64
 			h.audio.samples_per_sec = 48000
 			h.audio.speakers = 2
 			h.audio.format = C.AUDIO_FORMAT_FLOAT
