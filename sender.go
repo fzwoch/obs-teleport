@@ -60,7 +60,6 @@ func (s *Sender) SenderAdd(c net.Conn) {
 				blog(C.LOG_INFO, "disconnect: "+c.RemoteAddr().String())
 
 				s.Lock()
-				close(ch)
 				delete(s.conns, c)
 				s.Unlock()
 				break
