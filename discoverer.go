@@ -58,7 +58,6 @@ func (d *Discoverer) StartDiscoverer(services map[string]Peer, h sync.Locker) {
 				h.Lock()
 				services[j.Name+":"+j.Address] = Peer{
 					Payload: j,
-					Address: j.Address,
 					Time:    time.Now().Add(5 * time.Second),
 				}
 				h.Unlock()

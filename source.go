@@ -46,7 +46,6 @@ import (
 
 type Peer struct {
 	Payload AnnouncePayload
-	Address string
 	Time    time.Time
 }
 
@@ -138,7 +137,7 @@ func refresh_list(props *C.obs_properties_t, property *C.obs_property_t, data C.
 		service := h.services[k]
 
 		key := C.CString(k)
-		val := C.CString(fmt.Sprintf("%s / %s:%d", service.Payload.Name, service.Address, service.Payload.Port))
+		val := C.CString(fmt.Sprintf("%s / %s:%d", service.Payload.Name, service.Payload.Address, service.Payload.Port))
 
 		C.obs_property_list_add_string(prop, val, key)
 
@@ -409,7 +408,7 @@ func (h *teleportSource) sourceLoop() {
 				blog(C.LOG_INFO, "disconnected from: "+c.RemoteAddr().String())
 				c.Close()
 			}
-			c, err = net.DialTimeout("tcp", service.Address+":"+strconv.Itoa(service.Payload.Port), 100*time.Millisecond)
+			c, err = net.DialTimeout("tcp", service.Payload.Address+":"+strconv.Itoa(service.Payload.Port), 100*time.Millisecond)
 			connMutex.Unlock()
 
 			if err != nil {
