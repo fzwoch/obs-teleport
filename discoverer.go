@@ -46,7 +46,9 @@ func (d *Discoverer) StartDiscoverer(services map[string]Peer, h sync.Locker) {
 			AllowSelf:        true,
 			DisableBroadcast: true,
 			Notify: func(d peerdiscovery.Discovered) {
-				j := AnnouncePayload{}
+				j := AnnouncePayload{
+					Address: d.Address,
+				}
 
 				err := json.Unmarshal(d.Payload, &j)
 				if err != nil {
@@ -54,7 +56,7 @@ func (d *Discoverer) StartDiscoverer(services map[string]Peer, h sync.Locker) {
 				}
 
 				h.Lock()
-				services[j.Name+":"+d.Address] = Peer{
+				services[j.Name+":"+j.Address] = Peer{
 					Payload: j,
 					Address: d.Address,
 					Time:    time.Now().Add(5 * time.Second),

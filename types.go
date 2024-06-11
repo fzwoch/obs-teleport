@@ -33,6 +33,7 @@ type AnnouncePayload struct {
 	Port          int
 	AudioAndVideo bool
 	Version       string
+	Address       string
 }
 
 type Header struct {
