@@ -362,9 +362,21 @@ func (h *teleportSource) sourceLoop() {
 		connMutex.Unlock()
 	}()
 
-	h.Add(1)
-	go func() {
+	var run = func() {}
+
+	run = func() {
 		defer h.Done()
+
+		defer func() {
+			if r := recover(); r != nil {
+				blog(C.LOG_ERROR, "stream corrupt, re-trying..")
+
+				time.Sleep(time.Second)
+
+				h.Add(1)
+				go run()
+			}
+		}()
 
 		settings := C.obs_source_get_settings(h.source)
 
@@ -471,7 +483,10 @@ func (h *teleportSource) sourceLoop() {
 				h.newPacket(p)
 			}
 		}
-	}()
+	}
+
+	h.Add(1)
+	go run()
 
 	for {
 		select {
