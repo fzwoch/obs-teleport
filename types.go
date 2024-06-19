@@ -33,7 +33,7 @@ type AnnouncePayload struct {
 	Port          int
 	AudioAndVideo bool
 	Version       string
-	Address       string
+	Address       string `json:",omitempty"`
 }
 
 type Header struct {
