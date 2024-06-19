@@ -420,7 +420,7 @@ func (h *teleportSource) sourceLoop() {
 			}
 
 			blog(C.LOG_INFO, "connected to: "+c.RemoteAddr().String())
-			if service.Payload.Version != version {
+			if service.Payload.Version != "" && service.Payload.Version != version {
 				blog(C.LOG_WARNING, "version mismatch: "+service.Payload.Version+" != "+version)
 			}
 
