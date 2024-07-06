@@ -22,12 +22,13 @@ As of now only the Audio/Video filter mechanic is implemented on the filter feat
 
 ## Installation
 
-Please refer to the OBS Studio documentation on how and where to install plugins. There are too many platforms and installation options available as the scope of this project could explain and maintain.
+Please refer to the OBS Studio documentation: [plugins-guide], on how and where to install plugins. There are too many platforms and installation options available as the scope of this project could explain and maintain.
 
 Most platforms do have an installer though that may help you with the installation.
 
 Binaries can be grabbed from the [Releases] section.
 
+[plugins-guide]: https://obsproject.com/kb/plugins-guide]
 [Releases]: https://github.com/fzwoch/obs-teleport/releases
 
 
