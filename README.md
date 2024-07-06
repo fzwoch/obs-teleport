@@ -28,7 +28,7 @@ Most platforms do have an installer though that may help you with the installati
 
 Binaries can be grabbed from the [Releases] section.
 
-[plugins-guide]: https://obsproject.com/kb/plugins-guide]
+[plugins-guide]: https://obsproject.com/kb/plugins-guide
 [Releases]: https://github.com/fzwoch/obs-teleport/releases
 
 
