@@ -17,7 +17,7 @@ Alternatively you can force the sender to listen on a specific port and set the 
 
 **Having at least 1 Gbps of a stable network connection is kind of required / highly recommendend.** You can try to make a lower quality stream work with less bandwidth, but this is then up to you to experiment with.
 
-As of now only the Audio/Video filter mechanic is implemented on the filter feature. Adding it as an effect filter is currently not supported. Revert to the output mode in this case.
+As of now only the Audio/Video filter mechanic is implemented on the filter feature (Async sources). Adding it as an effect filter (Sync sources) is currently not supported. Revert to the output mode in this case.
 
 
 ## Installation
