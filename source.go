@@ -37,6 +37,7 @@ import (
 	"net"
 	"os"
 	"runtime/cgo"
+	"slices"
 	"sort"
 	"strconv"
 	"sync"
@@ -204,6 +205,22 @@ func (t *teleportSource) newPacket(p *Packet) {
 	t.Add(1)
 	go func(p *Packet) {
 		defer t.Done()
+
+		defer func() {
+			if r := recover(); r != nil {
+				blog(C.LOG_ERROR, "jpeg corrupt, discarding..")
+
+				t.queueLock.Lock()
+				defer t.queueLock.Unlock()
+
+				for i, packet := range t.queue {
+					if p == packet {
+						t.queue = slices.Delete(t.queue, i, i+1)
+						break
+					}
+				}
+			}
+		}()
 
 		if !p.IsAudio {
 			p.FromJPEG(t.pool)

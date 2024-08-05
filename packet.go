@@ -123,6 +123,7 @@ func (p *Packet) ToJPEG(pool *Pool) {
 
 func (p *Packet) FromJPEG(pool *Pool) {
 	ctx := C.tj3Init(C.TJINIT_DECOMPRESS)
+	defer C.tj3Destroy(ctx)
 
 	C.tj3DecompressHeader(ctx, (*C.uchar)(&p.Buffer[0]), C.size_t(len(p.Buffer)))
 
@@ -215,8 +216,6 @@ func (p *Packet) FromJPEG(pool *Pool) {
 	default:
 		panic("")
 	}
-
-	C.tj3Destroy(ctx)
 }
 
 func (p *Packet) ToImage(w C.uint32_t, h C.uint32_t, format C.enum_video_format, data [C.MAX_AV_PLANES]*C.uint8_t) {
