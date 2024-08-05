@@ -49,6 +49,7 @@ type Packet struct {
 
 func (p *Packet) ToJPEG(pool *Pool) {
 	ctx := C.tj3Init(C.TJINIT_COMPRESS)
+	defer C.tj3Destroy(ctx)
 
 	C.tj3Set(ctx, C.TJPARAM_NOREALLOC, 1)
 	C.tj3Set(ctx, C.TJPARAM_QUALITY, C.int(p.Quality))
@@ -105,8 +106,6 @@ func (p *Packet) ToJPEG(pool *Pool) {
 	}
 
 	buf = buf[:int(size)]
-
-	C.tj3Destroy(ctx)
 
 	p.Image = nil
 
