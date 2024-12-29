@@ -11,11 +11,17 @@ Just as an alternative option for stream setups with multiple machines wanting t
 
 ## Notes
 
-Obviously a network connection must be made between sender and receiver. So they must be on the same network for peer discovery. **In case no discovery is working, or no video/audio is being transmitted, make sure to disable network firewalls**.
+Obviously a network connection must be made between sender and receiver. So they must be on the same network for peer discovery.
+
+> [!IMPORTANT]
+> In case no discovery is working, or no video/audio is being transmitted, make sure to disable network firewalls**.
 
 Alternatively you can force the sender to listen on a specific port and set the firewall to allow this port to accept connections.
 
-**Having at least 1 Gbps of a stable network connection is kind of required / highly recommendend.** You can try to make a lower quality stream work with less bandwidth, but this is then up to you to experiment with.
+> [!IMPORTANT]
+> Having at least 1 Gbps of a stable network connection is kind of required / highly recommendend.
+
+You can try to make a lower quality stream work with less bandwidth, but this is then up to you to experiment with.
 
 As of now only the Audio/Video filter mechanic is implemented on the filter feature (Async sources). Adding it as an effect filter (Sync sources) is currently not supported. Revert to the output mode in this case.
 
