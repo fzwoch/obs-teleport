@@ -14,7 +14,7 @@ Just as an alternative option for stream setups with multiple machines wanting t
 Obviously a network connection must be made between sender and receiver. So they must be on the same network for peer discovery.
 
 > [!IMPORTANT]
-> In case no discovery is working, or no video/audio is being transmitted, make sure to disable network firewalls**.
+> In case no discovery is working, or no video/audio is being transmitted, make sure to disable network firewalls.
 
 Alternatively you can force the sender to listen on a specific port and set the firewall to allow this port to accept connections.
 
