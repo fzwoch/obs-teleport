@@ -26,6 +26,7 @@ package main
 import "C"
 import (
 	"bytes"
+	"math"
 	"net"
 	"runtime/cgo"
 	"strconv"
@@ -44,6 +45,7 @@ type teleportOutput struct {
 	output       *C.obs_output_t
 	queue        []*Packet
 	laggedFrames int
+	offset       uint64
 }
 
 //export output_get_name
@@ -57,6 +59,8 @@ func output_create(settings *C.obs_data_t, output *C.obs_output_t) C.uintptr_t {
 		output: output,
 		pool:   NewPool(10),
 	}
+
+	C.obs_output_set_mixers(output, 0b111111)
 
 	return C.uintptr_t(cgo.NewHandle(h))
 }
@@ -94,6 +98,7 @@ func output_start(data C.uintptr_t) C.bool {
 
 	h.done = make(chan any)
 	h.laggedFrames = 0
+	h.offset = math.MaxUint64
 
 	h.Add(1)
 	go h.outputLoop()
@@ -192,9 +197,17 @@ func output_raw_video(data C.uintptr_t, frame *C.struct_video_data) {
 	}(p)
 }
 
-//export output_raw_audio
-func output_raw_audio(data C.uintptr_t, frames *C.struct_audio_data) {
+//export output_raw_audio2
+func output_raw_audio2(data C.uintptr_t, idx C.size_t, frames *C.struct_audio_data) {
+	if idx != 0 {
+		return
+	}
+
 	h := cgo.Handle(data).Value().(*teleportOutput)
+
+	if h.offset == math.MaxUint64 {
+		h.offset = uint64(frames.timestamp)
+	}
 
 	if h.SenderGetNumConns() == 0 {
 		return
@@ -205,7 +218,7 @@ func output_raw_audio(data C.uintptr_t, frames *C.struct_audio_data) {
 
 	p := Packet{
 		Header: Header{
-			Timestamp: uint64(frames.timestamp),
+			Timestamp: h.offset + (uint64(frames.timestamp)-h.offset)/6,
 		},
 	}
 

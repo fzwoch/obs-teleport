@@ -20,6 +20,9 @@
 
 package main
 
+// #cgo pkg-config: libjpeg
+// #cgo CFLAGS: -I../obs-studio/libobs -I../obs-studio/UI/obs-frontend-api -I../obs-studio/build_ubuntu/config
+// #cgo LDFLAGS: -Wl,--unresolved-symbols=ignore-all
 //
 // #include <obs-module.h>
 // #include <obs-frontend-api.h>
@@ -73,8 +76,8 @@ package main
 // typedef void (*raw_video_t)(uintptr_t data, struct video_data *frame);
 // extern void output_raw_video(uintptr_t data, struct video_data *frame);
 //
-// typedef void (*raw_audio_t)(uintptr_t data, struct audio_data *frames);
-// extern void output_raw_audio(uintptr_t data, struct audio_data *frames);
+// typedef void (*raw_audio2_t)(uintptr_t data, size_t idx, struct audio_data *frames);
+// extern void output_raw_audio2(uintptr_t data, size_t idx, struct audio_data *frames);
 //
 // typedef bool (*start_t)(uintptr_t data);
 // extern bool output_start(uintptr_t data);
@@ -182,14 +185,14 @@ func obs_module_load() C.bool {
 
 	C.obs_register_output_s(&C.struct_obs_output_info{
 		id:                 output_str,
-		flags:              C.OBS_OUTPUT_AV,
+		flags:              C.OBS_OUTPUT_AV | C.OBS_OUTPUT_MULTI_TRACK,
 		get_name:           C.get_name_t(unsafe.Pointer(C.output_get_name)),
 		create:             C.output_create_t(unsafe.Pointer(C.output_create)),
 		destroy:            C.destroy_t(unsafe.Pointer(C.output_destroy)),
 		start:              C.start_t(unsafe.Pointer(C.output_start)),
 		stop:               C.stop_t(unsafe.Pointer(C.output_stop)),
 		raw_video:          C.raw_video_t(unsafe.Pointer(C.output_raw_video)),
-		raw_audio:          C.raw_audio_t(unsafe.Pointer(C.output_raw_audio)),
+		raw_audio2:         C.raw_audio2_t(unsafe.Pointer(C.output_raw_audio2)),
 		get_dropped_frames: C.get_dropped_frames_t(unsafe.Pointer(C.output_get_dropped_frames)),
 	}, C.sizeof_struct_obs_output_info)
 
