@@ -484,6 +484,7 @@ func (p *Packet) ToWAVE(info *C.struct_audio_output_info, frames C.uint32_t, dat
 		SampleRate: int32(info.samples_per_sec),
 		Speakers:   int32(info.speakers),
 		Frames:     int32(frames),
+		Track:      p.WaveHeader.Track,
 	}
 
 	h := bytes.Buffer{}

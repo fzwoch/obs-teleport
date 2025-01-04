@@ -53,6 +53,7 @@ type WaveHeader struct {
 	SampleRate int32
 	Speakers   int32
 	Frames     int32
+	Track      int32
 }
 
 func blog(log_level C.int, message string) {

@@ -267,7 +267,10 @@ func (t *teleportSource) newPacket(p *Packet) {
 				t.audio.frames = C.uint(p.WaveHeader.Frames)
 				t.audio.data[0] = (*C.uint8_t)(unsafe.Pointer(&p.Buffer[0]))
 
-				C.obs_source_output_audio(t.source, t.audio)
+				//C.obs_source_set_audio_mixers(t.source, 1<<p.WaveHeader.Track) // this is not the correct way..
+				if p.WaveHeader.Track == 0 {
+					C.obs_source_output_audio(t.source, t.audio)
+				}
 
 				t.audio.data[0] = nil
 			} else {

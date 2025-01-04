@@ -199,10 +199,6 @@ func output_raw_video(data C.uintptr_t, frame *C.struct_video_data) {
 
 //export output_raw_audio2
 func output_raw_audio2(data C.uintptr_t, idx C.size_t, frames *C.struct_audio_data) {
-	if idx != 0 {
-		return
-	}
-
 	h := cgo.Handle(data).Value().(*teleportOutput)
 
 	if h.offset == math.MaxUint64 {
@@ -219,6 +215,9 @@ func output_raw_audio2(data C.uintptr_t, idx C.size_t, frames *C.struct_audio_da
 	p := Packet{
 		Header: Header{
 			Timestamp: h.offset + (uint64(frames.timestamp)-h.offset)/6,
+		},
+		WaveHeader: WaveHeader{
+			Track: int32(idx),
 		},
 	}
 
