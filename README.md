@@ -1,12 +1,13 @@
 # OBS Teleport
 
-An [OBS Studio] plugin for an open [NDI]-like replacement. Pretty simple, straight forward. No NDI compatibility in any form.
+An [OBS Studio] plugin for an open [DistroAV]/[NDI]-like replacement. Pretty simple, straight forward. No NDI compatibility in any form.
 
 Just as an alternative option for stream setups with multiple machines wanting to transmit some OBS Studio scenes to the main streaming machine in LAN.
 
 ![](img/obs-teleport.png)
 
 [OBS Studio]: https://obsproject.com
+[DistroAV]: https://github.com/DistroAV/DistroAV
 [NDI]: https://ndi.tv/
 
 ## Notes
