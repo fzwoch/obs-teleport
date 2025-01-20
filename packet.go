@@ -74,7 +74,7 @@ func (p *Packet) ToJPEG(pool *Pool) {
 		case image.YCbCrSubsampleRatio444:
 			subsampling = C.TJSAMP_444
 		default:
-			panic("")
+			panic("invalid subsampling")
 		}
 
 		C.tj3Set(ctx, C.TJPARAM_SUBSAMP, subsampling)
@@ -102,7 +102,7 @@ func (p *Packet) ToJPEG(pool *Pool) {
 		C.tj3Compress8(ctx, (*C.uchar)(&img.Pix[0]), C.int(img.Rect.Dx()), 0, C.int(img.Rect.Dy()), C.TJPF_BGRX, &tmp, &size)
 		pinner.Unpin()
 	default:
-		panic("")
+		panic("invalid image type")
 	}
 
 	buf = buf[:int(size)]
@@ -192,7 +192,7 @@ func (p *Packet) FromJPEG(pool *Pool) {
 				SubsampleRatio: image.YCbCrSubsampleRatio422,
 			}
 		default:
-			panic("")
+			panic("invalid subsampling")
 		}
 
 		C.tj3DecompressToYUV8(ctx, (*C.uchar)(&p.Buffer[0]), C.size_t(len(p.Buffer)), (*C.uchar)(&buf[0]), 1)
@@ -213,7 +213,7 @@ func (p *Packet) FromJPEG(pool *Pool) {
 
 		C.tj3Decompress8(ctx, (*C.uchar)(&p.Buffer[0]), C.size_t(len(p.Buffer)), (*C.uchar)(&buf[0]), 0, C.TJCS_RGB)
 	default:
-		panic("")
+		panic("invalid colorspace")
 	}
 }
 
@@ -438,7 +438,7 @@ func (p *Packet) ToImage(w C.uint32_t, h C.uint32_t, format C.enum_video_format,
 			Pix:    p.ImageBuffer.Bytes(),
 		}
 	default:
-		panic("")
+		panic("invalid video format")
 	}
 
 	return

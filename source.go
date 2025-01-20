@@ -207,8 +207,8 @@ func (t *teleportSource) newPacket(p *Packet) {
 		defer t.Done()
 
 		defer func() {
-			if r := recover(); r != nil {
-				blog(C.LOG_ERROR, "jpeg corrupt, discarding..")
+			if r, ok := recover().(error); ok {
+				blog(C.LOG_ERROR, "jpeg corrupt, discarding.. "+r.Error())
 
 				t.queueLock.Lock()
 				defer t.queueLock.Unlock()
@@ -339,7 +339,7 @@ func (t *teleportSource) newPacket(p *Packet) {
 
 					t.frame.data[0] = nil
 				default:
-					panic("")
+					panic("invalid video format")
 				}
 			}
 
@@ -385,8 +385,8 @@ func (h *teleportSource) sourceLoop() {
 		defer h.Done()
 
 		defer func() {
-			if r := recover(); r != nil {
-				blog(C.LOG_ERROR, "stream corrupt, re-trying..")
+			if r, ok := recover().(error); ok {
+				blog(C.LOG_ERROR, "stream corrupt, re-trying.. "+r.Error())
 
 				time.Sleep(time.Second)
 
