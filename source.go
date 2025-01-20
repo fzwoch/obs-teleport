@@ -339,7 +339,7 @@ func (t *teleportSource) newPacket(p *Packet) {
 
 					t.frame.data[0] = nil
 				default:
-					panic("invalid video format")
+					panic(errors.New("invalid video format"))
 				}
 			}
 
