@@ -1,0 +1,87 @@
+name: Releases
+on: 
+  push:
+    tags:
+    - '*'
+
+jobs:
+  build-matrix:
+    strategy:
+      matrix:
+        obs:
+          - os: ubuntu-latest
+            include-path: /usr/include/obs
+
+        go-version:
+          - '1.23'
+
+      runs-on: ${{ matrix.obs.os }}
+      permissions: write
+
+      steps:
+        - name: Clone source code for this project
+          uses: actions/checkout@v4
+          with:
+            fetch-depth: 0
+
+        - uses: actions/cache@v4
+          id: cache-dependencies
+          with:
+            path: |
+              pkg
+              ${{ matrix.obs.include-path }}
+            key: ${{ matrix.obs.os }}_${{ matrix.go-version }}
+
+        ## TODO: maybe us this instead of installing via package manager
+        ##       though that'd require modifying the `/usr/include/obs` path
+        ##       and maybe building as a non-shared/linked project?
+        # - name: Clone source code for OBS Studio for headers
+        #   if: steps.cache-dependencies.outputs.cache-hit != 'true'
+        #   uses: actions/checkout@v4
+        #   with:
+        #     repository: obsproject/obs-studio
+        #     path: obs-studio
+        #     submodules: recursive
+        #     fetch-depth: 0
+        - name: Install OBS Studio for headers
+          if: steps.cache-dependencies.outputs.cache-hit != 'true'
+          run: |
+            export DEBIAN_FRONTEND=noninteractive
+            apt-get --yes update
+            apt-get --yes --force-yes install obs-studio
+
+        - name: Setup Go ${{ matrix.go-version }} on ${{ matrix.obs.os }}
+          uses: actions/setup-go@v5
+          with:
+            go-version: ${{ matrix.go-version }}
+
+        - name: Compile source into binary
+          run: |
+            export VERSION="$(git tag --list --sort=-version:refname | awk '/[[:digit:]]+\./ { print; exit 0; }')"
+            export GOPATH="${PWD}"
+            export CGO_CPPFLAGS="${CPPFLAGS}"
+            export CGO_CFLAGS="${CFLAGS} -I${{ matrix.obs.include-path }}"
+            export CGO_CXXFLAGS="${CXXFLAGS}"
+            export CGO_LDFLAGS="${LDFLAGS} -lturbojpeg -lobs -lobs-frontend-api"
+            export GOFLAGS="-buildmode=c-shared -mod=readonly -modcacherw"
+            go build -ldflags "-compressdwarf=false -linkmode external -X main.version=${VERSION}" -v -o "obs-teleport.so" .
+
+
+        ## Note: alternatives exist for this Action now that GitHub has chosen
+        ##       to not maintain their own version
+        - uses: ncipollo/release-action@v1
+          with:
+            artifacts: "obs-teleport.so"
+            draft: true
+
+##
+# Attributions:
+#
+# - https://docs.github.com/en/actions/use-cases-and-examples/building-and-testing/building-and-testing-go
+# - https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/running-variations-of-jobs-in-a-workflow
+# - https://github.com/actions/checkout/issues/24
+# - https://stackoverflow.com/questions/16747021/how-do-you-statically-link-a-c-library-in-go-using-cgo
+# - https://github.com/fzwoch/obs-teleport/issues/19
+# - https://aur.archlinux.org/cgit/aur.git/tree/PKGBUILD?h=obs-teleport
+# - https://trstringer.com/github-actions-create-release-upload-artifacts/
+
