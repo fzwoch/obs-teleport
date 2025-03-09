@@ -80,9 +80,9 @@ func (p *Packet) ToJPEG(pool *Pool) {
 
 		C.tj3Set(ctx, C.TJPARAM_SUBSAMP, subsampling)
 
-		s := C.tj3JPEGBufSize(C.int(img.Rect.Dx()), C.int(img.Rect.Dy()), subsampling)
+		size = C.tj3JPEGBufSize(C.int(img.Rect.Dx()), C.int(img.Rect.Dy()), subsampling)
 
-		buf = make([]byte, int(s))
+		buf = make([]byte, int(size))
 		tmp = (*C.uchar)(&buf[0])
 
 		pinner.Pin(tmp)
@@ -94,9 +94,9 @@ func (p *Packet) ToJPEG(pool *Pool) {
 		C.tj3Set(ctx, C.TJPARAM_SUBSAMP, C.TJSAMP_444)
 		C.tj3Set(ctx, C.TJPARAM_COLORSPACE, C.TJCS_RGB)
 
-		s := C.tj3JPEGBufSize(C.int(img.Rect.Dx()), C.int(img.Rect.Dy()), C.TJSAMP_444)
+		size = C.tj3JPEGBufSize(C.int(img.Rect.Dx()), C.int(img.Rect.Dy()), C.TJSAMP_444)
 
-		buf = make([]byte, int(s))
+		buf = make([]byte, int(size))
 		tmp = (*C.uchar)(&buf[0])
 
 		pinner.Pin(tmp)
