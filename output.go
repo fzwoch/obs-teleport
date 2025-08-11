@@ -100,6 +100,8 @@ func output_start(data C.uintptr_t) C.bool {
 
 	C.obs_output_begin_data_capture(h.output, 0)
 
+	blog(C.LOG_INFO, "output started")
+
 	return true
 }
 
@@ -113,6 +115,8 @@ func output_stop(data C.uintptr_t, ts C.uint64_t) {
 	}
 
 	C.obs_output_end_data_capture(h.output)
+
+	blog(C.LOG_INFO, "output stopped")
 
 	h.done <- nil
 	h.Wait()
