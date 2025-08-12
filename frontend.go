@@ -40,7 +40,7 @@ var (
 	teleport_enabled_str          = C.CString("teleport-enabled")
 	teleport_enabled_readable_str = C.CString("Teleport Enabled")
 	enabled_warning               = C.CString("enabled-warning")
-	enabled_warning_str           = C.CString("Warning: While Teleport is enabled you will not be able to change OBS's output settings.")
+	enabled_warning_str           = C.CString("Warning: While Teleport is enabled and a client is connected you will not be able to change OBS's output settings.")
 	identifier_str                = C.CString("identifier")
 	identifier_readable_str       = C.CString("Identifier")
 	identifier_description_str    = C.CString("Name of the stream. Uses hostname if blank.")

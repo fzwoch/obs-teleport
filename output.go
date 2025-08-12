@@ -98,10 +98,6 @@ func output_start(data C.uintptr_t) C.bool {
 	h.Add(1)
 	go h.outputLoop()
 
-	C.obs_output_begin_data_capture(h.output, 0)
-
-	blog(C.LOG_INFO, "output started")
-
 	return true
 }
 
@@ -113,10 +109,6 @@ func output_stop(data C.uintptr_t, ts C.uint64_t) {
 	if h.done == nil {
 		return
 	}
-
-	C.obs_output_end_data_capture(h.output)
-
-	blog(C.LOG_INFO, "output stopped")
 
 	h.done <- nil
 	h.Wait()
@@ -130,6 +122,9 @@ func output_raw_video(data C.uintptr_t, frame *C.struct_video_data) {
 	h := cgo.Handle(data).Value().(*teleportOutput)
 
 	if h.SenderGetNumConns() == 0 {
+		C.obs_output_end_data_capture(h.output)
+		blog(C.LOG_INFO, "output stopped")
+
 		return
 	}
 
@@ -254,6 +249,11 @@ func (h *teleportOutput) outputLoop() {
 			}
 
 			h.SenderAdd(c)
+
+			if !C.obs_output_active(h.output) {
+				C.obs_output_begin_data_capture(h.output, 0)
+				blog(C.LOG_INFO, "output started")
+			}
 		}
 	}()
 
