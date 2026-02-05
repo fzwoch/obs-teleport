@@ -125,7 +125,7 @@ var (
 
 //export obs_module_load
 func obs_module_load() C.bool {
-	blog(C.LOG_INFO, "version: "+version)
+	blog(C.LOG_INFO, "version: "+version, ", go: "+runtime.Version()+", jpeg: "+C.LIBJPEG_TURBO_VERSION)
 
 	C.obs_register_source_s(&C.struct_obs_source_info{
 		id:             source_str,
