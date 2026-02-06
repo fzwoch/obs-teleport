@@ -21,10 +21,13 @@
 #include <obs-module.h>
 #include <jconfig.h>
 
+#define STRINGIFY(x) #x
+#define TOSTRING(x) STRINGIFY(x)
+
 void blog_string(const int log_level, const char* string) {
     blog(log_level, "[obs-teleport] %s", string);
 }
 
 const char* jpeg_version() {
-    return "LIBJPEG_TURBO_VERSION";
+    return TOSTRING(LIBJPEG_TURBO_VERSION);
 }
