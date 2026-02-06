@@ -87,8 +87,10 @@ package main
 //
 // extern void frontend_event_cb(enum obs_frontend_event event, uintptr_t data);
 //
+// extern const char* jpeg_version();
 import "C"
 import (
+	"runtime"
 	"unsafe"
 )
 
@@ -125,7 +127,7 @@ var (
 
 //export obs_module_load
 func obs_module_load() C.bool {
-	blog(C.LOG_INFO, "version: "+version, ", go: "+runtime.Version()+", jpeg: "+C.LIBJPEG_TURBO_VERSION)
+	blog(C.LOG_INFO, "version: "+version+", go: "+runtime.Version()+", jpeg: "+C.GoString(C.jpeg_version()))
 
 	C.obs_register_source_s(&C.struct_obs_source_info{
 		id:             source_str,

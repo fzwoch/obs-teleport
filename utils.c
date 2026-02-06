@@ -19,7 +19,12 @@
 //
 
 #include <obs-module.h>
+#include <jconfig.h>
 
 void blog_string(const int log_level, const char* string) {
     blog(log_level, "[obs-teleport] %s", string);
+}
+
+const char* jpeg_version() {
+    return "LIBJPEG_TURBO_VERSION";
 }
