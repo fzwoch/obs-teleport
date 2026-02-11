@@ -24,6 +24,7 @@ package main
 // #include <obs-module.h>
 //
 // extern bool refresh_list(obs_properties_t *props, obs_property_t *property, uintptr_t data);
+// extern bool manual_connect_callback(obs_properties_t *props, obs_property_t *property, obs_data_t *settings);
 //
 import "C"
 import (
@@ -72,6 +73,12 @@ var (
 	refresh_readable_str = C.CString("Refresh List")
 	no_services_str      = C.CString("Press 'Refresh List' to search for streams")
 	disabled_str         = C.CString("- Disabled -")
+	manual_str           = C.CString("manual")
+	manual_readable_str  = C.CString("Manual Connection")
+	address_str          = C.CString("address")
+	address_readable_str = C.CString("IP Address")
+	port_str             = C.CString("port")
+	port_readable_str    = C.CString("Port")
 )
 
 //export source_get_name
@@ -150,14 +157,39 @@ func refresh_list(props *C.obs_properties_t, property *C.obs_property_t, data C.
 	return true
 }
 
+//export manual_connect_callback
+func manual_connect_callback(props *C.obs_properties_t, property *C.obs_property_t, settings *C.obs_data_t) C.bool {
+	manual := C.obs_data_get_bool(settings, manual_str)
+
+	list := C.obs_properties_get(props, teleport_list_str)
+	refresh := C.obs_properties_get(props, refresh_readable_str)
+	address := C.obs_properties_get(props, address_str)
+	port := C.obs_properties_get(props, port_str)
+
+	C.obs_property_set_visible(list, !manual)
+	C.obs_property_set_visible(refresh, !manual)
+	C.obs_property_set_visible(address, manual)
+	C.obs_property_set_visible(port, manual)
+
+	return true
+}
+
 //export source_get_properties
 func source_get_properties(data C.uintptr_t) *C.obs_properties_t {
 	properties := C.obs_properties_create()
+
+	C.obs_properties_set_flags(properties, C.OBS_PROPERTIES_DEFER_UPDATE)
 
 	C.obs_properties_add_list(properties, teleport_list_str, frontend_str, C.OBS_COMBO_TYPE_LIST, C.OBS_COMBO_FORMAT_STRING)
 	refresh_list(properties, nil, data)
 
 	C.obs_properties_add_button(properties, refresh_readable_str, refresh_readable_str, C.obs_property_clicked_t(unsafe.Pointer(C.refresh_list)))
+
+	prop := C.obs_properties_add_bool(properties, manual_str, manual_readable_str)
+	C.obs_property_set_modified_callback(prop, C.obs_property_modified_t(unsafe.Pointer(C.manual_connect_callback)))
+
+	C.obs_properties_add_text(properties, address_str, address_readable_str, C.OBS_TEXT_DEFAULT)
+	C.obs_properties_add_int(properties, port_str, port_readable_str, 0, math.MaxUint16, 1)
 
 	return properties
 }
@@ -165,6 +197,9 @@ func source_get_properties(data C.uintptr_t) *C.obs_properties_t {
 //export source_get_defaults
 func source_get_defaults(settings *C.obs_data_t) {
 	C.obs_data_set_default_string(settings, teleport_list_str, empty_str)
+	C.obs_data_set_default_bool(settings, manual_str, false)
+	C.obs_data_set_default_string(settings, address_str, empty_str)
+	C.obs_data_set_default_int(settings, port_str, 0)
 }
 
 //export source_update
@@ -396,14 +431,19 @@ func (h *teleportSource) sourceLoop() {
 		}()
 
 		settings := C.obs_source_get_settings(h.source)
-
+		manual := C.obs_data_get_bool(settings, manual_str)
 		teleport := C.GoString(C.obs_data_get_string(settings, teleport_list_str))
-
+		address := C.GoString(C.obs_data_get_string(settings, address_str))
+		port := C.obs_data_get_int(settings, port_str)
 		C.obs_data_release(settings)
 
-		if teleport == "" {
+		if !manual && teleport == "" {
 			C.obs_source_output_video(h.source, nil)
+			return
+		}
 
+		if manual && (address == "" || port == 0) {
+			C.obs_source_output_video(h.source, nil)
 			return
 		}
 
@@ -416,9 +456,22 @@ func (h *teleportSource) sourceLoop() {
 
 			C.obs_source_output_video(h.source, nil)
 
-			h.Lock()
-			service, ok := h.services[teleport]
-			h.Unlock()
+			var service Peer
+			var ok bool
+			var connectAddress string
+
+			if manual {
+				connectAddress = address + ":" + strconv.Itoa(int(port))
+				ok = true
+				service.Payload.AudioAndVideo = true // Assume A/V for manual connect
+			} else {
+				h.Lock()
+				service, ok = h.services[teleport]
+				h.Unlock()
+				if ok {
+					connectAddress = service.Payload.Address + ":" + strconv.Itoa(service.Payload.Port)
+				}
+			}
 
 			if !ok {
 				time.Sleep(100 * time.Millisecond)
@@ -437,7 +490,7 @@ func (h *teleportSource) sourceLoop() {
 				blog(C.LOG_INFO, "disconnected from: "+c.RemoteAddr().String())
 				c.Close()
 			}
-			c, err = net.DialTimeout("tcp", service.Payload.Address+":"+strconv.Itoa(service.Payload.Port), 100*time.Millisecond)
+			c, err = net.DialTimeout("tcp", connectAddress, 100*time.Millisecond)
 			connMutex.Unlock()
 
 			if err != nil {
@@ -449,7 +502,7 @@ func (h *teleportSource) sourceLoop() {
 			}
 
 			blog(C.LOG_INFO, "connected to: "+c.RemoteAddr().String())
-			if service.Payload.Version != "" && service.Payload.Version != version {
+			if !manual && service.Payload.Version != "" && service.Payload.Version != version {
 				blog(C.LOG_WARNING, "version mismatch: "+service.Payload.Version+" != "+version)
 			}
 
