@@ -59,7 +59,7 @@ type teleportSource struct {
 	source          *C.obs_source_t
 	queueLock       sync.Mutex
 	queue           []*Packet
-	frame           *C.struct_obs_source_frame
+	frame           *C.struct_obs_source_frame2
 	audio           *C.struct_obs_source_audio
 	isStart         bool
 	isAudioAndVideo bool
@@ -85,7 +85,7 @@ func source_create(settings *C.obs_data_t, source *C.obs_source_t) C.uintptr_t {
 		done:     make(chan any),
 		services: map[string]Peer{},
 		source:   source,
-		frame:    (*C.struct_obs_source_frame)(C.bzalloc(C.sizeof_struct_obs_source_frame)),
+		frame:    (*C.struct_obs_source_frame2)(C.bzalloc(C.sizeof_struct_obs_source_frame2)),
 		audio:    (*C.struct_obs_source_audio)(C.bzalloc(C.sizeof_struct_obs_source_audio)),
 		pool:     NewPool(10),
 	}
@@ -182,7 +182,7 @@ func source_update(data C.uintptr_t, settings *C.obs_data_t) {
 func source_activate(data C.uintptr_t) {
 	h := cgo.Handle(data).Value().(*teleportSource)
 
-	C.obs_source_output_video(h.source, nil)
+	C.obs_source_output_video2(h.source, nil)
 }
 
 func (t *teleportSource) newPacket(p *Packet) {
@@ -292,9 +292,9 @@ func (t *teleportSource) newPacket(p *Packet) {
 					}
 
 					if p.ImageHeader.ColorRangeMin == [3]float32{0, 0, 0} && p.ImageHeader.ColorRangeMax == [3]float32{1, 1, 1} {
-						t.frame.full_range = true
+						t.frame._range = C.VIDEO_RANGE_FULL
 					} else {
-						t.frame.full_range = false
+						t.frame._range = C.VIDEO_RANGE_PARTIAL
 					}
 
 					t.frame.width = C.uint(p.Image.Bounds().Dx())
@@ -305,7 +305,7 @@ func (t *teleportSource) newPacket(p *Packet) {
 					copy(unsafe.Slice((*float32)(&t.frame.color_range_min[0]), 3), p.ImageHeader.ColorRangeMin[:])
 					copy(unsafe.Slice((*float32)(&t.frame.color_range_max[0]), 3), p.ImageHeader.ColorRangeMax[:])
 
-					C.obs_source_output_video(t.source, t.frame)
+					C.obs_source_output_video2(t.source, t.frame)
 
 					t.pool.Put(bytes.NewBuffer(img.Y))
 
@@ -320,9 +320,9 @@ func (t *teleportSource) newPacket(p *Packet) {
 					t.frame.format = C.VIDEO_FORMAT_BGR3
 
 					if p.ImageHeader.ColorRangeMin == [3]float32{0, 0, 0} && p.ImageHeader.ColorRangeMax == [3]float32{1, 1, 1} {
-						t.frame.full_range = true
+						t.frame._range = C.VIDEO_RANGE_FULL
 					} else {
-						t.frame.full_range = false
+						t.frame._range = C.VIDEO_RANGE_PARTIAL
 					}
 
 					t.frame.width = C.uint(p.Image.Bounds().Dx())
@@ -333,7 +333,7 @@ func (t *teleportSource) newPacket(p *Packet) {
 					copy(unsafe.Slice((*float32)(&t.frame.color_range_min[0]), 3), p.ImageHeader.ColorRangeMin[:])
 					copy(unsafe.Slice((*float32)(&t.frame.color_range_max[0]), 3), p.ImageHeader.ColorRangeMax[:])
 
-					C.obs_source_output_video(t.source, t.frame)
+					C.obs_source_output_video2(t.source, t.frame)
 
 					t.pool.Put(bytes.NewBuffer(img.Pix))
 
@@ -402,7 +402,7 @@ func (h *teleportSource) sourceLoop() {
 		C.obs_data_release(settings)
 
 		if teleport == "" {
-			C.obs_source_output_video(h.source, nil)
+			C.obs_source_output_video2(h.source, nil)
 
 			return
 		}
@@ -414,7 +414,7 @@ func (h *teleportSource) sourceLoop() {
 			default:
 			}
 
-			C.obs_source_output_video(h.source, nil)
+			C.obs_source_output_video2(h.source, nil)
 
 			h.Lock()
 			service, ok := h.services[teleport]
