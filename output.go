@@ -1,6 +1,6 @@
 //
 // obs-teleport. OBS Studio plugin.
-// Copyright (C) 2021-2024 Florian Zwoch <fzwoch@gmail.com>
+// Copyright (C) 2021-2026 Florian Zwoch <fzwoch@gmail.com>
 //
 // This file is part of obs-teleport.
 //
