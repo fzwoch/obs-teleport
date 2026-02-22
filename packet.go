@@ -190,7 +190,7 @@ func (p *Packet) FromJPEG(pool *Pool) {
 				Y:              Y,
 				Cb:             Cb,
 				Cr:             Cr,
-				SubsampleRatio: image.YCbCrSubsampleRatio422,
+				SubsampleRatio: image.YCbCrSubsampleRatio444,
 			}
 		default:
 			panic(errors.New("invalid subsampling"))
