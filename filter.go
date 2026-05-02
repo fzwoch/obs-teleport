@@ -246,7 +246,8 @@ func filter_loop(h *teleportFilter) {
 
 	l, err := net.Listen("tcp", ":"+strconv.Itoa(listenPort))
 	if err != nil {
-		panic(err)
+		blog(C.LOG_ERROR, "unable binding to port: "+strconv.Itoa(listenPort))
+		return
 	}
 	defer l.Close()
 
