@@ -12,7 +12,7 @@ Just as an alternative option for stream setups with multiple machines wanting t
 
 ## Notes
 
-Obviously a network connection must be made between sender and receiver. So they must be on the same network for peer discovery.
+Obviously a network connection must be made between sender and receiver. So they must be on the same network and allow multicast for peer discovery.
 
 > [!IMPORTANT]
 > In case no discovery is working, or no video/audio is being transmitted, make sure to disable network firewalls.
