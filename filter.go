@@ -114,7 +114,7 @@ func filter_get_properties(data C.uintptr_t) *C.obs_properties_t {
 	prop = C.obs_properties_add_int_slider(properties, quality_str, quality_readable_str, 1, 100, 1)
 	C.obs_property_set_modified_callback(prop, C.obs_property_modified_t(unsafe.Pointer(C.quality_warning_callback)))
 
-	C.obs_properties_add_button(properties, apply_str, apply_str, C.obs_property_clicked_t(unsafe.Pointer(C.filter_apply_clicked)))
+	C.obs_properties_add_button2(properties, apply_str, apply_str, C.obs_property_clicked_t(unsafe.Pointer(C.filter_apply_clicked)), nil)
 
 	prop = C.obs_properties_add_text(properties, quality_warning, quality_warning_str, C.OBS_TEXT_INFO)
 	C.obs_property_text_set_info_type(prop, C.OBS_TEXT_INFO_WARNING)

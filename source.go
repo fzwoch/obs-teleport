@@ -157,7 +157,7 @@ func source_get_properties(data C.uintptr_t) *C.obs_properties_t {
 	C.obs_properties_add_list(properties, teleport_list_str, frontend_str, C.OBS_COMBO_TYPE_LIST, C.OBS_COMBO_FORMAT_STRING)
 	refresh_list(properties, nil, data)
 
-	C.obs_properties_add_button(properties, refresh_readable_str, refresh_readable_str, C.obs_property_clicked_t(unsafe.Pointer(C.refresh_list)))
+	C.obs_properties_add_button2(properties, refresh_readable_str, refresh_readable_str, C.obs_property_clicked_t(unsafe.Pointer(C.refresh_list)), nil)
 
 	return properties
 }
