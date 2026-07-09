@@ -31,7 +31,7 @@ As of now only the Audio/Video filter mechanic is implemented on the filter feat
 
 Please refer to the OBS Studio documentation: [plugins-guide], on how and where to install plugins. There are too many platforms and installation options available as the scope of this project could explain and maintain.
 
-Most platforms do have an installer though that may help you with the installation.
+Most platforms do have an installer though that may help you with the installation. Flatpak OBS versions can install it via Add-ons from Flathub.
 
 Binaries can be grabbed from the [Releases] section.
 
