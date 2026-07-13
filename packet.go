@@ -26,6 +26,8 @@ package main
 // #include <obs-module.h>
 // #include <turbojpeg.h>
 //
+// extern tjhandle tj3_init(int initType);
+//
 import "C"
 import (
 	"bytes"
@@ -49,7 +51,7 @@ type Packet struct {
 }
 
 func (p *Packet) ToJPEG(pool *Pool) {
-	ctx := C.tj3Init(C.TJINIT_COMPRESS)
+	ctx := C.tj3_init(C.TJINIT_COMPRESS)
 	defer C.tj3Destroy(ctx)
 
 	C.tj3Set(ctx, C.TJPARAM_NOREALLOC, 1)
@@ -122,7 +124,7 @@ func (p *Packet) ToJPEG(pool *Pool) {
 }
 
 func (p *Packet) FromJPEG(pool *Pool) {
-	ctx := C.tj3Init(C.TJINIT_DECOMPRESS)
+	ctx := C.tj3_init(C.TJINIT_DECOMPRESS)
 	defer C.tj3Destroy(ctx)
 
 	C.tj3DecompressHeader(ctx, (*C.uchar)(&p.Buffer[0]), C.size_t(len(p.Buffer)))

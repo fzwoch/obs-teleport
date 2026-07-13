@@ -20,6 +20,7 @@
 
 #include <obs-module.h>
 #include <jconfig.h>
+#include <turbojpeg.h>
 
 #define STRINGIFY(x) #x
 #define TOSTRING(x) STRINGIFY(x)
@@ -30,4 +31,8 @@ void blog_string(const int log_level, const char* string) {
 
 const char* jpeg_version() {
     return TOSTRING(LIBJPEG_TURBO_VERSION);
+}
+
+tjhandle tj3_init(int initType) {
+	return tj3Init(initType);
 }
