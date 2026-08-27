@@ -26,6 +26,7 @@ package main
 //
 // extern bool filter_apply_clicked(obs_properties_t *props, obs_property_t *property, uintptr_t data);
 // extern bool quality_warning_callback(obs_properties_t *properties, obs_property_t *prop, obs_data_t *settings);
+// extern bool advanced_callback(obs_properties_t *properties, obs_property_t *prop, obs_data_t *settings);
 //
 import "C"
 import (
@@ -108,9 +109,6 @@ func filter_get_properties(data C.uintptr_t) *C.obs_properties_t {
 	prop := C.obs_properties_add_text(properties, identifier_str, identifier_readable_str, C.OBS_TEXT_DEFAULT)
 	C.obs_property_set_long_description(prop, identifier_description_str)
 
-	prop = C.obs_properties_add_int(properties, port_str, port_readable_str, 0, math.MaxUint16, 1)
-	C.obs_property_set_long_description(prop, port_description_str)
-
 	prop = C.obs_properties_add_int_slider(properties, quality_str, quality_readable_str, 1, 100, 1)
 	C.obs_property_set_modified_callback(prop, C.obs_property_modified_t(unsafe.Pointer(C.quality_warning_callback)))
 
@@ -119,14 +117,21 @@ func filter_get_properties(data C.uintptr_t) *C.obs_properties_t {
 	prop = C.obs_properties_add_text(properties, quality_warning, quality_warning_str, C.OBS_TEXT_INFO)
 	C.obs_property_text_set_info_type(prop, C.OBS_TEXT_INFO_WARNING)
 
+	prop = C.obs_properties_add_bool(properties, advanced_str, advanced_readable_str)
+	C.obs_property_set_modified_callback(prop, C.obs_property_modified_t(unsafe.Pointer(C.advanced_callback)))
+
+	prop = C.obs_properties_add_int(properties, port_str, port_readable_str, 0, math.MaxUint16, 1)
+	C.obs_property_set_long_description(prop, port_description_str)
+
 	return properties
 }
 
 //export filter_get_defaults
 func filter_get_defaults(settings *C.obs_data_t) {
 	C.obs_data_set_default_string(settings, identifier_str, empty_str)
-	C.obs_data_set_default_int(settings, port_str, 0)
 	C.obs_data_set_default_int(settings, quality_str, 90)
+	C.obs_data_set_default_bool(settings, advanced_str, false)
+	C.obs_data_set_default_int(settings, port_str, 0)
 }
 
 //export filter_update
