@@ -443,21 +443,6 @@ func (h *teleportSource) sourceLoop() {
 			return
 		}
 
-		manualAddr := ""
-		if manual != "" {
-			if host, portStr, err := net.SplitHostPort(manual); err == nil && host != "" {
-				if port, perr := strconv.Atoi(portStr); perr == nil && port > 0 && port <= 65535 {
-					manualAddr = net.JoinHostPort(host, strconv.Itoa(port))
-				}
-			}
-			if manualAddr == "" {
-				blog(C.LOG_ERROR, "invalid manual connection '"+manual+"', expected format 'host:port'")
-				C.obs_source_output_video2(h.source, nil)
-
-				return
-			}
-		}
-
 		for {
 			select {
 			case <-dial:
@@ -471,8 +456,8 @@ func (h *teleportSource) sourceLoop() {
 			var audioAndVideo bool
 			var versionStr string
 
-			if manualAddr != "" {
-				addr = manualAddr
+			if manual != "" {
+				addr = manual
 				audioAndVideo = av
 			} else {
 				h.Lock()
