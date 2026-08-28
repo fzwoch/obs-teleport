@@ -45,7 +45,7 @@ jobs:
       - name: Unpack OBS libraries
         if: ${{ matrix.os == 'windows' }}
         run: |
-          if [ ${{ matrix.arch}} == "amd64" ]; then
+          if [ "${{ matrix.arch }}" = "amd64" ]; then
             wget -q -O /tmp/obs.zip https://github.com/obsproject/obs-studio/releases/download/32.2.2/OBS-Studio-32.2.2-Windows-x64.zip
           else
             wget -q -O /tmp/obs.zip https://github.com/obsproject/obs-studio/releases/download/32.2.2/OBS-Studio-32.2.2-Windows-arm64.zip
