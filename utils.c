@@ -33,6 +33,10 @@ const char* jpeg_version() {
     return TOSTRING(LIBJPEG_TURBO_VERSION);
 }
 
+void set_modified_callback2(obs_property_t* prop, obs_property_modified2_t callback, uintptr_t priv) {
+    obs_property_set_modified_callback2(prop, callback, (void*)priv);
+}
+
 tjhandle tj3_init(int initType) {
 	return tj3Init(initType);
 }

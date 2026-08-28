@@ -24,9 +24,10 @@ package main
 // #include <obs-module.h>
 //
 // extern bool refresh_list(obs_properties_t *props, obs_property_t *property, uintptr_t data);
-// extern bool source_list_callback(void *priv, obs_properties_t *properties, obs_property_t *prop, obs_data_t *settings);
+// extern bool source_list_callback(uintptr_t priv, obs_properties_t *properties, obs_property_t *prop, obs_data_t *settings);
 // extern bool source_advanced_callback(obs_properties_t *properties, obs_property_t *prop, obs_data_t *settings);
-// extern void source_update(uintptr_t data, obs_data_t *settings);
+//
+// extern void set_modified_callback2(obs_property_t *prop, obs_property_modified2_t callback, uintptr_t priv);
 //
 import "C"
 import (
@@ -160,9 +161,12 @@ func refresh_list(props *C.obs_properties_t, property *C.obs_property_t, data C.
 }
 
 //export source_list_callback
-func source_list_callback(priv *C.void, properties *C.obs_properties_t, prop *C.obs_property_t, settings *C.obs_data_t) C.bool {
-	C.source_update(C.uintptr_t(uintptr(unsafe.Pointer(priv))), settings)
-	return true
+func source_list_callback(priv C.uintptr_t, properties *C.obs_properties_t, prop *C.obs_property_t, settings *C.obs_data_t) C.bool {
+	h := cgo.Handle(priv).Value().(*teleportSource)
+
+	C.obs_source_update(h.source, nil)
+
+	return false
 }
 
 //export source_advanced_callback
@@ -185,7 +189,7 @@ func source_get_properties(data C.uintptr_t) *C.obs_properties_t {
 	C.obs_properties_set_flags(properties, C.OBS_PROPERTIES_DEFER_UPDATE)
 
 	prop := C.obs_properties_add_list(properties, teleport_list_str, frontend_str, C.OBS_COMBO_TYPE_LIST, C.OBS_COMBO_FORMAT_STRING)
-	C.obs_property_set_modified_callback2(prop, C.obs_property_modified2_t(unsafe.Pointer(C.source_list_callback)), unsafe.Pointer(uintptr(data)))
+	C.set_modified_callback2(prop, C.obs_property_modified2_t(unsafe.Pointer(C.source_list_callback)), data)
 	refresh_list(properties, nil, data)
 
 	C.obs_properties_add_button2(properties, refresh_readable_str, refresh_readable_str, C.obs_property_clicked_t(unsafe.Pointer(C.refresh_list)), nil)
