@@ -62,7 +62,7 @@ jobs:
           CGO_CFLAGS: -O2 -I/tmp/obs/libobs -I/tmp/obs/frontend/api -I/tmp/libjpeg/src -I/tmp/turbojpeg -I/tmp
           CGO_LDFLAGS: -L/tmp/turbojpeg -lturbojpeg ${{ matrix.ldflags }}
         run: |
-          go build -ldflags="-X main.version=${VERSION}" -buildmode=c-shared -o obs-teleport.${{ matrix.ext }}
+          go build -buildvcs=false -ldflags="-X main.version=${VERSION}" -buildmode=c-shared -o obs-teleport.${{ matrix.ext }}
           llvm-strip -s obs-teleport.${{ matrix.ext }}
 
       - name: Package
