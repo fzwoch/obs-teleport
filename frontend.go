@@ -50,7 +50,7 @@ var (
 	quality_warning               = C.CString("quality-warning")
 	quality_warning_str           = C.CString("Warning: A quality value over 90 is not recommended! Everything above 90 will most likely increase bandwidth by a lot, with very little visual quality gains. You can still try, but you have been warned.")
 	advanced_str                  = C.CString("advanced")
-	advanced_readable_str         = C.CString("Advanced")
+	advanced_readable_str         = C.CString("Show Advanced")
 	port_str                      = C.CString("port")
 	port_readable_str             = C.CString("TCP Port")
 	port_description_str          = C.CString("0 means 'auto'. If you set this I really hope you know what you are doing and how to configure your firewall.")

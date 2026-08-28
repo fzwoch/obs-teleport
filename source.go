@@ -24,6 +24,10 @@ package main
 // #include <obs-module.h>
 //
 // extern bool refresh_list(obs_properties_t *props, obs_property_t *property, uintptr_t data);
+// extern bool source_list_callback(uintptr_t priv, obs_properties_t *properties, obs_property_t *prop, obs_data_t *settings);
+// extern bool source_advanced_callback(obs_properties_t *properties, obs_property_t *prop, obs_data_t *settings);
+//
+// extern void set_modified_callback2(obs_property_t *prop, obs_property_modified2_t callback, uintptr_t priv);
 //
 import "C"
 import (
@@ -68,10 +72,16 @@ type teleportSource struct {
 }
 
 var (
-	teleport_list_str    = C.CString("teleport_list")
-	refresh_readable_str = C.CString("Refresh List")
-	no_services_str      = C.CString("Press 'Refresh List' to search for streams")
-	disabled_str         = C.CString("- Disabled -")
+	teleport_list_str         = C.CString("teleport_list")
+	refresh_readable_str      = C.CString("Refresh List")
+	no_services_str           = C.CString("Press 'Refresh List' to search for streams")
+	disabled_str              = C.CString("- Disabled -")
+	manual_ip_str             = C.CString("manual-ip")
+	manual_ip_readable_str    = C.CString("Manual IP")
+	manual_ip_description_str = C.CString("Connect directly to IP:Port without discovery. Takes precedence over the stream list, also while this section is hidden. Leave empty to disable.")
+	av_str                    = C.CString("has-audio-and-video")
+	av_readable_str           = C.CString("Video And Audio")
+	av_description_str        = C.CString("Check if manual stream contains audio and video data.")
 )
 
 //export source_get_name
@@ -150,14 +160,48 @@ func refresh_list(props *C.obs_properties_t, property *C.obs_property_t, data C.
 	return true
 }
 
+//export source_list_callback
+func source_list_callback(priv C.uintptr_t, properties *C.obs_properties_t, prop *C.obs_property_t, settings *C.obs_data_t) C.bool {
+	h := cgo.Handle(priv).Value().(*teleportSource)
+
+	C.obs_source_update(h.source, nil)
+
+	return false
+}
+
+//export source_advanced_callback
+func source_advanced_callback(properties *C.obs_properties_t, prop *C.obs_property_t, settings *C.obs_data_t) C.bool {
+	enabled := C.obs_data_get_bool(settings, advanced_str)
+
+	p := C.obs_properties_get(properties, manual_ip_str)
+	C.obs_property_set_visible(p, enabled)
+
+	p = C.obs_properties_get(properties, av_str)
+	C.obs_property_set_visible(p, enabled)
+
+	return true
+}
+
 //export source_get_properties
 func source_get_properties(data C.uintptr_t) *C.obs_properties_t {
 	properties := C.obs_properties_create()
 
-	C.obs_properties_add_list(properties, teleport_list_str, frontend_str, C.OBS_COMBO_TYPE_LIST, C.OBS_COMBO_FORMAT_STRING)
+	C.obs_properties_set_flags(properties, C.OBS_PROPERTIES_DEFER_UPDATE)
+
+	prop := C.obs_properties_add_list(properties, teleport_list_str, frontend_str, C.OBS_COMBO_TYPE_LIST, C.OBS_COMBO_FORMAT_STRING)
+	C.set_modified_callback2(prop, C.obs_property_modified2_t(unsafe.Pointer(C.source_list_callback)), data)
 	refresh_list(properties, nil, data)
 
 	C.obs_properties_add_button2(properties, refresh_readable_str, refresh_readable_str, C.obs_property_clicked_t(unsafe.Pointer(C.refresh_list)), nil)
+
+	prop = C.obs_properties_add_bool(properties, advanced_str, advanced_readable_str)
+	C.obs_property_set_modified_callback(prop, C.obs_property_modified_t(unsafe.Pointer(C.source_advanced_callback)))
+
+	prop = C.obs_properties_add_text(properties, manual_ip_str, manual_ip_readable_str, C.OBS_TEXT_DEFAULT)
+	C.obs_property_set_long_description(prop, manual_ip_description_str)
+
+	prop = C.obs_properties_add_bool(properties, av_str, av_readable_str)
+	C.obs_property_set_long_description(prop, av_description_str)
 
 	return properties
 }
@@ -165,6 +209,9 @@ func source_get_properties(data C.uintptr_t) *C.obs_properties_t {
 //export source_get_defaults
 func source_get_defaults(settings *C.obs_data_t) {
 	C.obs_data_set_default_string(settings, teleport_list_str, empty_str)
+	C.obs_data_set_default_bool(settings, advanced_str, false)
+	C.obs_data_set_default_string(settings, manual_ip_str, empty_str)
+	C.obs_data_set_default_bool(settings, av_str, false)
 }
 
 //export source_update
@@ -398,10 +445,12 @@ func (h *teleportSource) sourceLoop() {
 		settings := C.obs_source_get_settings(h.source)
 
 		teleport := C.GoString(C.obs_data_get_string(settings, teleport_list_str))
+		manual := C.GoString(C.obs_data_get_string(settings, manual_ip_str))
+		av := bool(C.obs_data_get_bool(settings, av_str))
 
 		C.obs_data_release(settings)
 
-		if teleport == "" {
+		if teleport == "" && manual == "" {
 			C.obs_source_output_video2(h.source, nil)
 
 			return
@@ -416,13 +465,26 @@ func (h *teleportSource) sourceLoop() {
 
 			C.obs_source_output_video2(h.source, nil)
 
-			h.Lock()
-			service, ok := h.services[teleport]
-			h.Unlock()
+			var addr string
+			var audioAndVideo bool
+			var versionStr string
 
-			if !ok {
-				time.Sleep(100 * time.Millisecond)
-				continue
+			if manual != "" {
+				addr = manual
+				audioAndVideo = av
+			} else {
+				h.Lock()
+				service, ok := h.services[teleport]
+				h.Unlock()
+
+				if !ok {
+					time.Sleep(100 * time.Millisecond)
+					continue
+				}
+
+				addr = service.Payload.Address + ":" + strconv.Itoa(service.Payload.Port)
+				audioAndVideo = service.Payload.AudioAndVideo
+				versionStr = service.Payload.Version
 			}
 
 			var err error
@@ -437,7 +499,7 @@ func (h *teleportSource) sourceLoop() {
 				blog(C.LOG_INFO, "disconnected from: "+c.RemoteAddr().String())
 				c.Close()
 			}
-			c, err = net.DialTimeout("tcp", service.Payload.Address+":"+strconv.Itoa(service.Payload.Port), 100*time.Millisecond)
+			c, err = net.DialTimeout("tcp", addr, 100*time.Millisecond)
 			connMutex.Unlock()
 
 			if err != nil {
@@ -449,8 +511,8 @@ func (h *teleportSource) sourceLoop() {
 			}
 
 			blog(C.LOG_INFO, "connected to: "+c.RemoteAddr().String())
-			if service.Payload.Version != "" && service.Payload.Version != version {
-				blog(C.LOG_WARNING, "version mismatch: "+service.Payload.Version+" != "+version)
+			if versionStr != "" && versionStr != version {
+				blog(C.LOG_WARNING, "version mismatch: "+versionStr+" != "+version)
 			}
 
 			h.audio.timestamp = math.MaxUint64
@@ -463,7 +525,7 @@ func (h *teleportSource) sourceLoop() {
 
 			h.isStart = true
 			h.queue = nil
-			h.isAudioAndVideo = service.Payload.AudioAndVideo
+			h.isAudioAndVideo = audioAndVideo
 
 			for {
 				p := &Packet{}
