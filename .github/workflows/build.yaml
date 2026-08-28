@@ -1,6 +1,7 @@
 on: push
 env:
   VERSION: 0.8.0
+  MACOSX_DEPLOYMENT_TARGET: 10.13
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -117,7 +118,7 @@ jobs:
         if: ${{ matrix.os == 'darwin' }}
         run: |
           mkdir -p obs-teleport.plugin/Contents/MacOS
-          mv obs-teleport.dylib obs-teleport.plugin/Contents/MacOS
+          mv obs-teleport.dylib obs-teleport.plugin/Contents/MacOS/obs-teleport
 
           cat > obs-teleport.plugin/Contents/Info.plist <<'EOF'
           <?xml version="1.0" encoding="UTF-8"?>
@@ -125,7 +126,7 @@ jobs:
           <plist version="1.0">
           <dict>
           	<key>CFBundleExecutable</key>
-          	<string>obs-teleport.dylib</string>
+          	<string>obs-teleport</string>
           </dict>
           </plist>
           EOF
