@@ -39,16 +39,16 @@ jobs:
           mkdir /tmp/simde
           wget -q -O- https://github.com/simd-everywhere/simde/releases/download/v0.8.2/simde-amalgamated-0.8.2.tar.xz | tar xJ --strip-components 1 -C /tmp/simde
           mkdir /tmp/obs
-          wget -q -O- https://github.com/obsproject/obs-studio/archive/refs/tags/32.2.2.tar.gz | tar xz --strip-components 1 -C /tmp/obs
+          wget -q -O- https://github.com/obsproject/obs-studio/archive/refs/tags/31.1.0.tar.gz | tar xz --strip-components 1 -C /tmp/obs
           touch /tmp/obs/libobs/obsconfig.h
 
       - name: Unpack OBS libraries
         if: ${{ matrix.os == 'windows' }}
         run: |
           if [ "${{ matrix.arch }}" = "amd64" ]; then
-            wget -q -O /tmp/obs.zip https://github.com/obsproject/obs-studio/releases/download/32.2.2/OBS-Studio-32.2.2-Windows-x64.zip
+            wget -q -O /tmp/obs.zip https://github.com/obsproject/obs-studio/releases/download/31.1.0/OBS-Studio-31.1.0-Windows-x64.zip
           else
-            wget -q -O /tmp/obs.zip https://github.com/obsproject/obs-studio/releases/download/32.2.2/OBS-Studio-32.2.2-Windows-arm64.zip
+            wget -q -O /tmp/obs.zip https://github.com/obsproject/obs-studio/releases/download/31.1.0/OBS-Studio-31.1.0-Windows-arm64.zip
           fi
           unzip -o /tmp/obs.zip "bin/64bit/obs-frontend-api.dll" "bin/64bit/obs.dll" -d /tmp/obs
           mv /tmp/obs/bin/64bit/*.dll /tmp/obs
