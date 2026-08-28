@@ -1,7 +1,7 @@
 on: push
 env:
   VERSION: 0.8.0
-  MACOSX_DEPLOYMENT_TARGET: 10.13
+  MACOSX_DEPLOYMENT_TARGET: 13.0
 jobs:
   build:
     runs-on: ubuntu-latest
