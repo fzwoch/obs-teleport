@@ -17,7 +17,7 @@ jobs:
           - { os: windows, arch: amd64, cc: x86_64-w64-mingw32-clang, ext: dll, tc: mingw-x86_64.cmake, ldflags: "-L/tmp/obs -lobs -lobs-frontend-api" }
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup NASM
         if: ${{ matrix.arch == 'amd64' }}
@@ -120,7 +120,7 @@ jobs:
           EOF
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.os }}-${{ matrix.arch }}
           path: |
