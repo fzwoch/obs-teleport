@@ -9,11 +9,11 @@ jobs:
     strategy:
       matrix:
         include:
-          #- { os: linux, arch: arm64, cc: aarch64-linux-gnu-clang, ext: so, tc: linux-arm64.cmake, ldflags: "" }
-          #- { os: linux, arch: amd64, cc: x86_64-linux-gnu-clang, ext: so, tc: linux-x86_64.cmake, ldflags: "" }
-          #- { os: darwin, arch: arm64, cc: oa64-clang, tc: macos-arm64.cmake, ext: dylib, ldflags: "-Wl,-undefined,dynamic_lookup" }
-          #- { os: darwin, arch: amd64, cc: o64-clang, tc: macos-x86_64.cmake, ext: dylib, ldflags: "-Wl,-undefined,dynamic_lookup" }
-          #- { os: windows, arch: arm64, cc: aarch64-w64-mingw32-clang, ext: dll, tc: mingw-arm64.cmake, ldflags: "-L/tmp/obs -lobs -lobs-frontend-api" }
+          - { os: linux, arch: arm64, cc: aarch64-linux-gnu-clang, ext: so, tc: linux-arm64.cmake, ldflags: "" }
+          - { os: linux, arch: amd64, cc: x86_64-linux-gnu-clang, ext: so, tc: linux-x86_64.cmake, ldflags: "" }
+          - { os: darwin, arch: arm64, cc: oa64-clang, tc: macos-arm64.cmake, ext: dylib, ldflags: "-Wl,-undefined,dynamic_lookup" }
+          - { os: darwin, arch: amd64, cc: o64-clang, tc: macos-x86_64.cmake, ext: dylib, ldflags: "-Wl,-undefined,dynamic_lookup" }
+          - { os: windows, arch: arm64, cc: aarch64-w64-mingw32-clang, ext: dll, tc: mingw-arm64.cmake, ldflags: "-L/tmp/obs -lobs -lobs-frontend-api" }
           - { os: windows, arch: amd64, cc: x86_64-w64-mingw32-clang, ext: dll, tc: mingw-x86_64.cmake, ldflags: "-L/tmp/obs -lobs -lobs-frontend-api" }
     steps:
       - name: Checkout
@@ -65,13 +65,24 @@ jobs:
           go build -buildvcs=false -ldflags="-X main.version=${VERSION}" -buildmode=c-shared -o obs-teleport.${{ matrix.ext }}
           llvm-strip -s obs-teleport.${{ matrix.ext }}
 
-      - name: Package
+      - name: Package Linux
         if: ${{ matrix.os == 'linux' }}
         run: |
           mkdir -p obs-teleport/bin/64bit
           mv obs-teleport.${{ matrix.ext }} obs-teleport/bin/64bit
 
-      - name: NSIS Installer
+          cat > install.sh <<'EOF'
+          #!/bin/sh
+
+          echo "Installing Teleport into ~/.config/obs-studio/plugins"
+          mkdir -p ~/.config/obs-studio/plugins
+          rm -rf ~/.config/obs-studio/plugins/obs-teleport
+          cp -r $(dirname $0)/obs-teleport ~/.config/obs-studio/plugins/
+          EOF
+
+          chmod u+x install.sh
+
+      - name: Package Windows
         if: ${{ matrix.os == 'windows' }}
         run: |
           apt update
@@ -102,7 +113,7 @@ jobs:
 
           makensis -V0 -DVERSION=${VERSION} obs-teleport.nsi
 
-      - name: Bundle macOS
+      - name: Package macOS
         if: ${{ matrix.os == 'darwin' }}
         run: |
           mkdir -p obs-teleport.plugin/Contents/MacOS
@@ -119,11 +130,24 @@ jobs:
           </plist>
           EOF
 
+          cat > install.command <<'EOF'
+          #!/bin/sh
+
+          echo "Installing Teleport into ~/Library/Application\ Support/obs-studio/plugins"
+          mkdir -p ~/Library/Application\ Support/obs-studio/plugins
+          rm -rf ~/Library/Application\ Support/obs-studio/plugins/obs-teleport.plugin
+          cp -r $(dirname $0)/obs-teleport.plugin ~/Library/Application\ Support/obs-studio/plugins
+          EOF
+
+          chmod u+x install.command
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v7
         with:
           name: Teleport-${{ env.VERSION }}-${{ matrix.os }}-${{ matrix.arch }}
           path: |
+            install.sh
+            install.command
             obs-teleport
-            *.exe
             obs-teleport.plugin
+            *.exe
