@@ -1,0 +1,129 @@
+on: push
+env:
+  VERSION: 0.8.0
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: fzwoch/klumpatsch
+    strategy:
+      matrix:
+        include:
+          #- { os: linux, arch: arm64, cc: aarch64-linux-gnu-clang, ext: so, tc: linux-arm64.cmake, ldflags: "" }
+          #- { os: linux, arch: amd64, cc: x86_64-linux-gnu-clang, ext: so, tc: linux-x86_64.cmake, ldflags: "" }
+          #- { os: darwin, arch: arm64, cc: oa64-clang, tc: macos-arm64.cmake, ext: dylib, ldflags: "-Wl,-undefined,dynamic_lookup" }
+          #- { os: darwin, arch: amd64, cc: o64-clang, tc: macos-x86_64.cmake, ext: dylib, ldflags: "-Wl,-undefined,dynamic_lookup" }
+          #- { os: windows, arch: arm64, cc: aarch64-w64-mingw32-clang, ext: dll, tc: mingw-arm64.cmake, ldflags: "-L/tmp/obs -lobs -lobs-frontend-api" }
+          - { os: windows, arch: amd64, cc: x86_64-w64-mingw32-clang, ext: dll, tc: mingw-x86_64.cmake, ldflags: "-L/tmp/obs -lobs -lobs-frontend-api" }
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup NASM
+        if: ${{ matrix.arch == 'amd64' }}
+        run: |
+          apt update
+          apt install -y nasm
+
+      - name: Build libjpeg-turbo
+        run: |
+          mkdir /tmp/libjpeg
+          wget -q -O- https://github.com/libjpeg-turbo/libjpeg-turbo/releases/download/3.2.0/libjpeg-turbo-3.2.0.tar.gz | tar xz --strip-components 1 -C /tmp/libjpeg
+          # fix mingw
+          sed -i '/BuildPackages.cmake/d' /tmp/libjpeg/CMakeLists.txt
+          cmake -B /tmp/turbojpeg -G Ninja -DCMAKE_BUILD_TYPE=Release -DREQUIRE_SIMD=TRUE -DENABLE_SHARED=FALSE -DWITH_TOOLS=FALSE -DWITH_TESTS=FALSE -DCMAKE_POSITION_INDEPENDENT_CODE=TRUE -DCMAKE_TOOLCHAIN_FILE=/cmake/${{ matrix.tc }} /tmp/libjpeg
+          cmake --build /tmp/turbojpeg
+
+      - name: Unpack OBS headers
+        run: |
+          mkdir /tmp/simde
+          wget -q -O- https://github.com/simd-everywhere/simde/releases/download/v0.8.2/simde-amalgamated-0.8.2.tar.xz | tar xJ --strip-components 1 -C /tmp/simde
+          mkdir /tmp/obs
+          wget -q -O- https://github.com/obsproject/obs-studio/archive/refs/tags/32.2.2.tar.gz | tar xz --strip-components 1 -C /tmp/obs
+          touch /tmp/obs/libobs/obsconfig.h
+
+      - name: Unpack OBS libraries
+        if: ${{ matrix.os == 'windows' }}
+        run: |
+          if [ ${{ matrix.arch}} == "amd64" ]; then
+            wget -q -O /tmp/obs.zip https://github.com/obsproject/obs-studio/releases/download/32.2.2/OBS-Studio-32.2.2-Windows-x64.zip
+          else
+            wget -q -O /tmp/obs.zip https://github.com/obsproject/obs-studio/releases/download/32.2.2/OBS-Studio-32.2.2-Windows-arm64.zip
+          fi
+          unzip -o /tmp/obs.zip "bin/64bit/obs-frontend-api.dll" "bin/64bit/obs.dll" -d /tmp/obs
+          mv /tmp/obs/bin/64bit/*.dll /tmp/obs
+
+      - name: Build
+        env:
+          CGO_ENABLED: 1
+          GOOS: ${{ matrix.os }}
+          GOARCH: ${{ matrix.arch }}
+          CC: ${{ matrix.cc }}
+          CGO_CFLAGS: -O2 -I/tmp/obs/libobs -I/tmp/obs/frontend/api -I/tmp/libjpeg/src -I/tmp/turbojpeg -I/tmp
+          CGO_LDFLAGS: -L/tmp/turbojpeg -lturbojpeg ${{ matrix.ldflags }}
+        run: |
+          go build -ldflags="-X main.version=${VERSION}" -buildmode=c-shared -o obs-teleport.${{ matrix.ext }}
+          llvm-strip -s obs-teleport.${{ matrix.ext }}
+
+      - name: Package
+        if: ${{ matrix.os == 'linux' }}
+        run: |
+          mkdir -p obs-teleport/bin/64bit
+          mv obs-teleport.${{ matrix.ext }} obs-teleport/bin/64bit
+
+      - name: NSIS Installer
+        if: ${{ matrix.os == 'windows' }}
+        run: |
+          apt update
+          apt install -y nsis
+
+          cat > obs-teleport.nsi <<'EOF'
+          !include "MUI2.nsh"
+
+          Target AMD64-Unicode
+
+          Name "OBS Teleport ${VERSION}"
+          OutFile "Teleport ${VERSION}.exe"
+
+          !insertmacro MUI_PAGE_LICENSE "LICENSE"
+          !insertmacro MUI_PAGE_INSTFILES
+
+          !insertmacro MUI_LANGUAGE "English"
+
+          Function .onInit
+              StrCpy "$INSTDIR" "$COMMONPROGRAMDATA\obs-studio\plugins\obs-teleport\bin\64bit"
+          FunctionEnd
+
+          Section
+              SetOutPath "$INSTDIR"
+              File "obs-teleport.dll"
+          SectionEnd
+          EOF
+
+          makensis -V0 -DVERSION=${VERSION} obs-teleport.nsi
+
+      - name: Bundle macOS
+        if: ${{ matrix.os == 'darwin' }}
+        run: |
+          mkdir -p obs-teleport.plugin/Contents/MacOS
+          mv obs-teleport.dylib obs-teleport.plugin/Contents/MacOS
+
+          cat > obs-teleport.plugin/Contents/Info.plist <<'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+          	<key>CFBundleExecutable</key>
+          	<string>obs-teleport.dylib</string>
+          </dict>
+          </plist>
+          EOF
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.os }}-${{ matrix.arch }}
+          path: |
+            obs-teleport
+            *.exe
+            obs-teleport.plugin
