@@ -138,6 +138,7 @@ jobs:
           mkdir -p ~/Library/Application\ Support/obs-studio/plugins
           rm -rf ~/Library/Application\ Support/obs-studio/plugins/obs-teleport.plugin
           cp -r $(dirname $0)/obs-teleport.plugin ~/Library/Application\ Support/obs-studio/plugins
+          codesign -s - ~/Library/Application\ Support/obs-studio/plugins/obs-teleport.plugin
           EOF
 
           chmod u+x install.command
