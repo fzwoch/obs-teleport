@@ -29,6 +29,7 @@ package main
 // extern bool enabled_warning_callback(obs_properties_t *properties, obs_property_t *prop, obs_data_t *settings);
 // extern bool quality_warning_callback(obs_properties_t *properties, obs_property_t *prop, obs_data_t *settings);
 // extern bool advanced_callback(obs_properties_t *properties, obs_property_t *prop, obs_data_t *settings);
+// extern void video_reset_cb(void *data, void *cd);
 //
 import "C"
 import (
@@ -57,6 +58,7 @@ var (
 	apply_str                     = C.CString("Apply")
 	empty_str                     = C.CString("")
 	config_str                    = C.CString("obs-teleport.json")
+	video_reset_str               = C.CString("video_reset")
 
 	output *C.obs_output_t
 	dummy  *C.obs_source_t
@@ -76,6 +78,8 @@ func frontend_event_cb(event C.enum_obs_frontend_event, data C.uintptr_t) {
 		output = C.obs_output_create(output_str, frontend_str, nil, nil)
 		dummy = C.obs_source_create(dummy_str, frontend_str, nil, nil)
 
+		C.signal_handler_connect(C.obs_get_signal_handler(), video_reset_str, C.signal_callback_t(unsafe.Pointer(C.video_reset_cb)), nil)
+
 		config := C.obs_module_get_config_path(C.obs_current_module(), nil)
 
 		C.os_mkdirs(config)
@@ -89,6 +93,8 @@ func frontend_event_cb(event C.enum_obs_frontend_event, data C.uintptr_t) {
 
 		C.bfree(unsafe.Pointer(config))
 	case C.OBS_FRONTEND_EVENT_EXIT:
+		C.signal_handler_disconnect(C.obs_get_signal_handler(), video_reset_str, C.signal_callback_t(unsafe.Pointer(C.video_reset_cb)), nil)
+
 		if C.obs_output_active(output) {
 			C.obs_output_stop(output)
 		}
@@ -104,6 +110,15 @@ func frontend_event_cb(event C.enum_obs_frontend_event, data C.uintptr_t) {
 		C.obs_output_release(output)
 		C.obs_source_release(dummy)
 	}
+}
+
+//export video_reset_cb
+func video_reset_cb(param unsafe.Pointer, cd unsafe.Pointer) {
+	blog(C.LOG_INFO, "video reset")
+
+	settings := C.obs_source_get_settings(dummy)
+	C.obs_source_update(dummy, settings)
+	C.obs_data_release(settings)
 }
 
 //export dummy_get_name
