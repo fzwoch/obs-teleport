@@ -70,7 +70,7 @@ jobs:
         if: ${{ matrix.os == 'linux' }}
         run: |
           mkdir -p obs-teleport/bin/64bit
-          mv obs-teleport.${{ matrix.ext }} obs-teleport/bin/64bit
+          mv obs-teleport.so obs-teleport/bin/64bit
 
           cat > install.sh <<'EOF'
           #!/bin/sh
