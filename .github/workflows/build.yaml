@@ -75,10 +75,10 @@ jobs:
           cat > install.sh <<'EOF'
           #!/bin/sh
 
-          echo "Installing Teleport into ~/.config/obs-studio/plugins"
-          mkdir -p ~/.config/obs-studio/plugins
-          rm -rf ~/.config/obs-studio/plugins/obs-teleport
-          cp -r $(dirname $0)/obs-teleport ~/.config/obs-studio/plugins/
+          echo "Installing Teleport into ~/.local/share/obs-studio/plugins"
+          mkdir -p ~/.local/share/obs-studio/plugins
+          rm -rf ~/.local/share/obs-studio/plugins/obs-teleport
+          cp -r $(dirname $0)/obs-teleport ~/.local/share/obs-studio/plugins/
           EOF
 
           chmod u+x install.sh
@@ -105,7 +105,7 @@ jobs:
           !insertmacro MUI_LANGUAGE "English"
 
           Function .onInit
-              StrCpy "$INSTDIR" "$COMMONPROGRAMDATA\obs-studio\plugins\obs-teleport\bin\64bit"
+              StrCpy "$INSTDIR" "$COMMONPROGRAMDATA\obs-studio\plugins\obs-teleport"
           FunctionEnd
 
           Section "Install"
@@ -121,7 +121,7 @@ jobs:
           Section "Uninstall"
               Delete "$INSTDIR\uninstall.exe"
               Delete "$INSTDIR\obs-teleport.dll"
-              RMDir /r "$INSTDIR\..\.."
+              RMDir /r "$INSTDIR"
               DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\OBS Teleport"
           SectionEnd
           EOF
